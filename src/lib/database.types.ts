@@ -24,7 +24,7 @@ export interface Database {
       };
       locations: {
         Row: Location;
-        Insert: Omit<Location, 'id' | 'timestamp'>;
+        Insert: Omit<Location, 'id'>;
         Update: Partial<Omit<Location, 'id'>>;
       };
     };
