@@ -33,6 +33,7 @@ yarn-error.*
 # local env files
 .env
 .env*.local
+asdasd.md
 
 # typescript
 *.tsbuildinfo
@@ -43,4 +44,3 @@ example
 /ios
 /android
 /.jira
-/.vscode
