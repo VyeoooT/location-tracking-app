@@ -84,6 +84,7 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
   const [isActive, setIsActive] = useState(false);
   const [tripName, setTripName] = useState<string | null>(null);
   const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
+  const endTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!tripId) return;
@@ -144,6 +145,7 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
         .subscribe();
 
       // Listen for trip is_active → false (user stops tracking)
+      // Delay 3s then re-fetch from DB to ensure all locations are persisted
       const tripChannel = supabase
         .channel(`trip-status-${tripId}`)
         .on(
@@ -157,7 +159,34 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
           (payload) => {
             const updated = payload.new as { is_active: boolean };
             if (!updated.is_active) {
-              setIsActive(false);
+              // Wait 3s for final locations to be persisted, then re-fetch
+              endTimerRef.current = setTimeout(async () => {
+                if (cancelled) return;
+
+                const [{ data: freshTrip }, { data: freshLocations }] =
+                  await Promise.all([
+                    supabase
+                      .from('trips')
+                      .select('is_active, name')
+                      .eq('id', tripId)
+                      .single(),
+                    supabase
+                      .from('locations')
+                      .select('*')
+                      .eq('trip_id', tripId)
+                      .order('timestamp', { ascending: true }),
+                  ]);
+
+                if (cancelled) return;
+
+                if (freshTrip) {
+                  setIsActive(freshTrip.is_active);
+                  setTripName(freshTrip.name);
+                }
+                if (freshLocations) {
+                  setLocations(freshLocations as LocationPoint[]);
+                }
+              }, 3000);
             }
           },
         )
@@ -170,6 +199,7 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
 
     return () => {
       cancelled = true;
+      if (endTimerRef.current) clearTimeout(endTimerRef.current);
       for (const ch of channelsRef.current) {
         supabase.removeChannel(ch);
       }
