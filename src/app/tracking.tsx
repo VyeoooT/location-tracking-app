@@ -8,11 +8,10 @@ import * as TaskManager from 'expo-task-manager';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { VIEWER_BASE_URL } from '@/constants/config';
 import { useLocationTracking, LOCATION_TRACKING_TASK_NAME } from '@/hooks/useLocationTracking';
 import { supabase } from '@/lib/supabase';
 import { getTripStartTime } from '@/lib/async-storage';
-
-const VIEWER_BASE_URL = 'https://viewer.vercel.app/trip';
 
 export default function TrackingScreen() {
   const router = useRouter();

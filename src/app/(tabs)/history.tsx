@@ -15,9 +15,8 @@ import * as Clipboard from 'expo-clipboard';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { VIEWER_BASE_URL } from '@/constants/config';
 import { supabase } from '@/lib/supabase';
-
-const VIEWER_BASE_URL = 'https://viewer.vercel.app/trip';
 
 interface TripSummary {
   id: string;
