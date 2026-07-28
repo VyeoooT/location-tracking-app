@@ -13,8 +13,50 @@ import {
 
 export const LOCATION_TRACKING_TASK_NAME = 'LOCATION_TRACKING';
 
+// ─── GPS filtering helpers (global scope) ──────────────────────
+
+/** Tính khoảng cách Haversine giữa 2 điểm (mét) */
+function haversineDistance(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 6_371_000; // Bán kính trái đất (mét)
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Lưu điểm cuối cùng đã push để tính khoảng cách
+let lastPushedLat: number | null = null;
+let lastPushedLng: number | null = null;
+
+const MIN_SPEED_MPS = 1.0; // 3.6 km/h — dưới ngưỡng này coi là đứng yên
+const MIN_DISTANCE_M = 10; // 10 mét — dịch chuyển tối thiểu mới push
+
+/**
+ * Kiểm tra xem location có đáng push không.
+ * Logic: speed cao → push luôn. Speed thấp → kiểm tra khoảng cách.
+ */
+function shouldPush(lat: number, lng: number, speed: number | null): boolean {
+  // Speed cao → chắc chắn đang di chuyển
+  if (speed != null && speed >= MIN_SPEED_MPS) return true;
+
+  // Speed thấp / null → kiểm tra khoảng cách với điểm cuối
+  if (lastPushedLat == null || lastPushedLng == null) return true; // điểm đầu tiên luôn push
+
+  const dist = haversineDistance(lastPushedLat, lastPushedLng, lat, lng);
+  return dist > MIN_DISTANCE_M;
+}
+
 // ─── Background task (global scope) ────────────────────────────
-// Chạy ngay cả khi app ở background. Tự push location lên Supabase.
+// Chạy ngay cả khi app ở background. Tự push location lên Supabase (có filter).
 TaskManager.defineTask(LOCATION_TRACKING_TASK_NAME, async ({ data, error }) => {
   if (error) {
     console.error('[BackgroundTask] Error:', error.message);
@@ -31,13 +73,36 @@ TaskManager.defineTask(LOCATION_TRACKING_TASK_NAME, async ({ data, error }) => {
     return;
   }
 
-  const rows = locations.map((loc) => ({
-    trip_id: tripId,
-    lat: loc.coords.latitude,
-    lng: loc.coords.longitude,
-    speed: loc.coords.speed,
-    timestamp: new Date(loc.timestamp).toISOString(),
-  }));
+  const rows: Array<{
+    trip_id: string;
+    lat: number;
+    lng: number;
+    speed: number | null;
+    timestamp: string;
+  }> = [];
+
+  for (const loc of locations) {
+    const { latitude, longitude, speed } = loc.coords;
+
+    if (shouldPush(latitude, longitude, speed ?? null)) {
+      rows.push({
+        trip_id: tripId,
+        lat: latitude,
+        lng: longitude,
+        speed: speed ?? null,
+        timestamp: new Date(loc.timestamp).toISOString(),
+      });
+      lastPushedLat = latitude;
+      lastPushedLng = longitude;
+    }
+  }
+
+  const filtered = locations.length - rows.length;
+  if (filtered > 0) {
+    console.log(`[BackgroundTask] Filtered ${filtered} GPS drift point(s)`);
+  }
+
+  if (rows.length === 0) return;
 
   const { error: dbError } = await supabase.from('locations').insert(rows);
   if (dbError) {
@@ -96,7 +161,7 @@ export function useLocationTracking() {
       await setStoredTripId(tripId);
       await setTripStartTime(Date.now());
 
-      // Foreground watch — cập nhật UI
+      // Foreground watch — cập nhật UI (chỉ đếm điểm được push)
       watchRef.current?.remove();
       const subscription = await Location.watchPositionAsync(
         {
@@ -106,8 +171,11 @@ export function useLocationTracking() {
         },
         (loc) => {
           setLastLocation(loc);
-          countRef.current += 1;
-          setLocationCount(countRef.current);
+          // Chỉ tăng count nếu điểm này đủ điều kiện push (đồng bộ với BG task)
+          if (shouldPush(loc.coords.latitude, loc.coords.longitude, loc.coords.speed ?? null)) {
+            countRef.current += 1;
+            setLocationCount(countRef.current);
+          }
         },
       );
       watchRef.current = subscription;
@@ -155,7 +223,7 @@ export function useLocationTracking() {
         setLocationCount(count);
       }
 
-      // Foreground watch — cập nhật UI
+      // Foreground watch — cập nhật UI (chỉ đếm điểm được push)
       watchRef.current?.remove();
       const subscription = await Location.watchPositionAsync(
         {
@@ -165,8 +233,10 @@ export function useLocationTracking() {
         },
         (loc) => {
           setLastLocation(loc);
-          countRef.current += 1;
-          setLocationCount(countRef.current);
+          if (shouldPush(loc.coords.latitude, loc.coords.longitude, loc.coords.speed ?? null)) {
+            countRef.current += 1;
+            setLocationCount(countRef.current);
+          }
         },
       );
       watchRef.current = subscription;

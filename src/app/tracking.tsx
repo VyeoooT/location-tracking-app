@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { StyleSheet, Pressable, View, Alert, Platform } from 'react-native';
+import { StyleSheet, Pressable, View, Alert, Share, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
@@ -98,6 +98,19 @@ export default function TrackingScreen() {
     setTimeout(() => setCopyLabel('Sao chép link'), 2000);
   };
 
+  const handleShareLink = async () => {
+    if (!tripId) return;
+    const link = `${VIEWER_BASE_URL}/${tripId}`;
+    try {
+      await Share.share({
+        message: `Xem hành trình của tôi: ${link}`,
+        url: link, // iOS
+      });
+    } catch {
+      // user cancelled — no-op
+    }
+  };
+
   const speedKmh =
     lastLocation?.coords.speed != null ? (lastLocation.coords.speed * 3.6).toFixed(1) : '--';
   const lat = lastLocation?.coords.latitude.toFixed(6) ?? '--';
@@ -163,12 +176,19 @@ export default function TrackingScreen() {
           </View>
         </ThemedView>
 
-        {/* Share link */}
-        <Pressable
-          style={({ pressed }) => [styles.copyButton, pressed && styles.copyButtonPressed]}
-          onPress={handleCopyLink}>
-          <ThemedText style={styles.copyButtonText}>{copyLabel}</ThemedText>
-        </Pressable>
+        {/* Share link row */}
+        <View style={styles.shareRow}>
+          <Pressable
+            style={({ pressed }) => [styles.copyButton, pressed && styles.copyButtonPressed]}
+            onPress={handleCopyLink}>
+            <ThemedText style={styles.copyButtonText}>{copyLabel}</ThemedText>
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [styles.shareButton, pressed && styles.shareButtonPressed]}
+            onPress={handleShareLink}>
+            <ThemedText style={styles.shareButtonText}>📤 Share link</ThemedText>
+          </Pressable>
+        </View>
 
         {/* Spacer */}
         <View style={{ flex: 1 }} />
@@ -295,8 +315,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(128, 128, 128, 0.2)',
     marginVertical: Spacing.one,
   },
+  shareRow: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+    marginBottom: Spacing.four,
+  },
   copyButton: {
-    alignSelf: 'stretch',
+    flex: 1,
     paddingVertical: Spacing.three,
     borderRadius: Spacing.three,
     borderWidth: 1,
@@ -307,9 +332,24 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   copyButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#208AEF',
+  },
+  shareButton: {
+    flex: 1,
+    paddingVertical: Spacing.three,
+    borderRadius: Spacing.three,
+    backgroundColor: '#208AEF',
+    alignItems: 'center',
+  },
+  shareButtonPressed: {
+    opacity: 0.7,
+  },
+  shareButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   stopButton: {
     alignSelf: 'stretch',

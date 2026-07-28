@@ -87,7 +87,8 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Helper: re-fetch trip status + locations from DB ──
-  const refetchAll = async (cancelled: () => boolean) => {
+  // Returns true if trip is still active (caller should restart idle timer)
+  const refetchAll = async (cancelled: () => boolean): Promise<boolean> => {
     const [{ data: freshTrip }, { data: freshLocations }] = await Promise.all([
       supabase
         .from('trips')
@@ -101,7 +102,7 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
         .order('timestamp', { ascending: true }),
     ]);
 
-    if (cancelled()) return;
+    if (cancelled()) return false;
 
     if (freshTrip) {
       setIsActive(freshTrip.is_active);
@@ -119,6 +120,8 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
     if (freshLocations) {
       setLocations(freshLocations as LocationPoint[]);
     }
+
+    return freshTrip?.is_active ?? false;
   };
 
   useEffect(() => {
@@ -166,9 +169,14 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
       // ── Idle detection: if no new location for 10s, trip might have stopped ──
       const resetIdleTimer = () => {
         if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-        idleTimerRef.current = setTimeout(() => {
+        idleTimerRef.current = setTimeout(async () => {
           console.log('[useTripRealtime] Idle for 10s — checking trip status...');
-          refetchAll(isCancelled);
+          const stillActive = await refetchAll(isCancelled);
+          // If trip is still active, restart the idle timer
+          if (stillActive && !isCancelled()) {
+            console.log('[useTripRealtime] Trip still active — restarting idle timer');
+            resetIdleTimer();
+          }
         }, 10_000);
       };
 
