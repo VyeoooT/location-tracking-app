@@ -84,12 +84,48 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
   const [isActive, setIsActive] = useState(false);
   const [tripName, setTripName] = useState<string | null>(null);
   const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
-  const endTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Helper: re-fetch trip status + locations from DB ──
+  const refetchAll = async (cancelled: () => boolean) => {
+    const [{ data: freshTrip }, { data: freshLocations }] = await Promise.all([
+      supabase
+        .from('trips')
+        .select('is_active, name')
+        .eq('id', tripId)
+        .single(),
+      supabase
+        .from('locations')
+        .select('*')
+        .eq('trip_id', tripId)
+        .order('timestamp', { ascending: true }),
+    ]);
+
+    if (cancelled()) return;
+
+    if (freshTrip) {
+      setIsActive(freshTrip.is_active);
+      setTripName(freshTrip.name);
+
+      // Trip ended → clean up channels & timer, no more idle checks
+      if (!freshTrip.is_active) {
+        if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+        for (const ch of channelsRef.current) {
+          supabase.removeChannel(ch);
+        }
+        channelsRef.current = [];
+      }
+    }
+    if (freshLocations) {
+      setLocations(freshLocations as LocationPoint[]);
+    }
+  };
 
   useEffect(() => {
     if (!tripId) return;
 
     let cancelled = false;
+    const isCancelled = () => cancelled;
 
     const run = async () => {
       // 1. Fetch trip status
@@ -127,7 +163,19 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
       // 3. Only subscribe to Realtime if trip is still active
       if (!tripData.is_active) return;
 
-      // Listen for new locations
+      // ── Idle detection: if no new location for 10s, trip might have stopped ──
+      const resetIdleTimer = () => {
+        if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = setTimeout(() => {
+          console.log('[useTripRealtime] Idle for 10s — checking trip status...');
+          refetchAll(isCancelled);
+        }, 10_000);
+      };
+
+      // Start idle timer immediately (trip might stop without sending more locations)
+      resetIdleTimer();
+
+      // Listen for new locations — each INSERT resets the idle timer
       const locChannel = supabase
         .channel(`locations-${tripId}`)
         .on(
@@ -140,66 +188,21 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
           },
           (payload) => {
             setLocations((prev) => [...prev, payload.new as LocationPoint]);
+            resetIdleTimer();
           },
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log(`[useTripRealtime] Locations channel: ${status}`);
+        });
 
-      // Listen for trip is_active → false (user stops tracking)
-      // Delay 3s then re-fetch from DB to ensure all locations are persisted
-      const tripChannel = supabase
-        .channel(`trip-status-${tripId}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'trips',
-            filter: `id=eq.${tripId}`,
-          },
-          (payload) => {
-            const updated = payload.new as { is_active: boolean };
-            if (!updated.is_active) {
-              // Wait 3s for final locations to be persisted, then re-fetch
-              endTimerRef.current = setTimeout(async () => {
-                if (cancelled) return;
-
-                const [{ data: freshTrip }, { data: freshLocations }] =
-                  await Promise.all([
-                    supabase
-                      .from('trips')
-                      .select('is_active, name')
-                      .eq('id', tripId)
-                      .single(),
-                    supabase
-                      .from('locations')
-                      .select('*')
-                      .eq('trip_id', tripId)
-                      .order('timestamp', { ascending: true }),
-                  ]);
-
-                if (cancelled) return;
-
-                if (freshTrip) {
-                  setIsActive(freshTrip.is_active);
-                  setTripName(freshTrip.name);
-                }
-                if (freshLocations) {
-                  setLocations(freshLocations as LocationPoint[]);
-                }
-              }, 3000);
-            }
-          },
-        )
-        .subscribe();
-
-      channelsRef.current = [locChannel, tripChannel];
+      channelsRef.current = [locChannel];
     };
 
     run();
 
     return () => {
       cancelled = true;
-      if (endTimerRef.current) clearTimeout(endTimerRef.current);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
       for (const ch of channelsRef.current) {
         supabase.removeChannel(ch);
       }
