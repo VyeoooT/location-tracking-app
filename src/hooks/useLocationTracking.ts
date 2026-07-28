@@ -2,7 +2,14 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { supabase } from '@/lib/supabase';
-import { getStoredTripId, setStoredTripId, removeStoredTripId } from '@/lib/async-storage';
+import {
+  getStoredTripId,
+  setStoredTripId,
+  removeStoredTripId,
+  setTripStartTime,
+  getTripStartTime,
+  removeTripStartTime,
+} from '@/lib/async-storage';
 
 export const LOCATION_TRACKING_TASK_NAME = 'LOCATION_TRACKING';
 
@@ -32,7 +39,7 @@ TaskManager.defineTask(LOCATION_TRACKING_TASK_NAME, async ({ data, error }) => {
     timestamp: new Date(loc.timestamp).toISOString(),
   }));
 
-  const { error: dbError } = await supabase.from('locations').insert(rows as never[]);
+  const { error: dbError } = await supabase.from('locations').insert(rows);
   if (dbError) {
     console.error('[BackgroundTask] Supabase insert error:', dbError.message);
   } else {
@@ -85,8 +92,9 @@ export function useLocationTracking() {
         return { success: false, reason: 'permission_denied' };
       }
 
-      // Lưu tripId để background task có thể đọc
+      // Lưu tripId và startTime để background task + resume có thể đọc
       await setStoredTripId(tripId);
+      await setTripStartTime(Date.now());
 
       // Foreground watch — cập nhật UI
       watchRef.current?.remove();
@@ -124,6 +132,52 @@ export function useLocationTracking() {
   );
 
   /**
+   * Nối lại tracking khi quay lại màn hình — background task vẫn đang chạy.
+   * Chỉ khởi động lại foreground watch + restore locationCount.
+   * @param tripId — UUID của trip đang active
+   */
+  const resumeTracking = useCallback(
+    async (tripId: string): Promise<TrackingResult> => {
+      // Kiểm tra quyền (có thể đã bị thu hồi)
+      const { status: fgStatus } = await Location.getForegroundPermissionsAsync();
+      if (fgStatus !== Location.PermissionStatus.GRANTED) {
+        return { success: false, reason: 'permission_denied' };
+      }
+
+      // Restore locationCount từ DB cho trip này
+      const { count, error: countError } = await supabase
+        .from('locations')
+        .select('id', { count: 'exact', head: true } as any)
+        .eq('trip_id', tripId);
+
+      if (!countError && count != null) {
+        countRef.current = count;
+        setLocationCount(count);
+      }
+
+      // Foreground watch — cập nhật UI
+      watchRef.current?.remove();
+      const subscription = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.BestForNavigation,
+          distanceInterval: 10,
+          timeInterval: 5000,
+        },
+        (loc) => {
+          setLastLocation(loc);
+          countRef.current += 1;
+          setLocationCount(countRef.current);
+        },
+      );
+      watchRef.current = subscription;
+
+      setIsTracking(true);
+      return { success: true };
+    },
+    [],
+  );
+
+  /**
    * Dừng tracking.
    * Trả về tripId đã lưu để caller có thể update is_active = false trên Supabase.
    */
@@ -139,6 +193,7 @@ export function useLocationTracking() {
 
     const tripId = await getStoredTripId();
     await removeStoredTripId();
+    await removeTripStartTime();
 
     setIsTracking(false);
     return tripId;
@@ -150,6 +205,7 @@ export function useLocationTracking() {
     locationCount,
     permissionStatus,
     startTracking,
+    resumeTracking,
     stopTracking,
   };
 }
