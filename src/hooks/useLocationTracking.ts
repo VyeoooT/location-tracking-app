@@ -38,7 +38,7 @@ let lastPushedLat: number | null = null;
 let lastPushedLng: number | null = null;
 
 const MIN_SPEED_MPS = 1.0; // 3.6 km/h — dưới ngưỡng này coi là đứng yên
-const MIN_DISTANCE_M = 10; // 10 mét — dịch chuyển tối thiểu mới push
+const MIN_DISTANCE_M = 20; // 20 mét — dịch chuyển tối thiểu mới push
 
 /**
  * Kiểm tra xem location có đáng push không.
@@ -161,30 +161,53 @@ export function useLocationTracking() {
       await setStoredTripId(tripId);
       await setTripStartTime(Date.now());
 
+      // Push điểm xuất phát ngay lập tức (không chờ distanceInterval)
+      const startPos = await Location.getCurrentPositionAsync({
+       accuracy: Location.Accuracy.BestForNavigation,
+      });
+      const { latitude, longitude, speed } = startPos.coords;
+      console.log('[startTracking] Pushing start point:', latitude.toFixed(6), longitude.toFixed(6));
+
+      const { error: startError } = await supabase.from('locations').insert({
+       trip_id: tripId,
+       lat: latitude,
+       lng: longitude,
+       speed: speed ?? null,
+       timestamp: new Date(startPos.timestamp).toISOString(),
+      });
+
+      if (startError) {
+       console.error('[startTracking] Start point insert error:', startError.message);
+      } else {
+       lastPushedLat = latitude;
+       lastPushedLng = longitude;
+       countRef.current = 1;
+       setLocationCount(1);
+       setLastLocation(startPos);
+      }
+
       // Foreground watch — cập nhật UI (chỉ đếm điểm được push)
       watchRef.current?.remove();
       const subscription = await Location.watchPositionAsync(
-        {
-          accuracy: Location.Accuracy.BestForNavigation,
-          distanceInterval: 10,
-          timeInterval: 5000,
-        },
-        (loc) => {
-          setLastLocation(loc);
-          // Chỉ tăng count nếu điểm này đủ điều kiện push (đồng bộ với BG task)
-          if (shouldPush(loc.coords.latitude, loc.coords.longitude, loc.coords.speed ?? null)) {
-            countRef.current += 1;
-            setLocationCount(countRef.current);
-          }
-        },
+       {
+         accuracy: Location.Accuracy.BestForNavigation,
+         distanceInterval: 30,
+       },
+       (loc) => {
+         setLastLocation(loc);
+         // Chỉ tăng count nếu điểm này đủ điều kiện push (đồng bộ với BG task)
+         if (shouldPush(loc.coords.latitude, loc.coords.longitude, loc.coords.speed ?? null)) {
+           countRef.current += 1;
+           setLocationCount(countRef.current);
+         }
+       },
       );
       watchRef.current = subscription;
 
       // Background task với foreground service notification
       await Location.startLocationUpdatesAsync(LOCATION_TRACKING_TASK_NAME, {
-        accuracy: Location.Accuracy.BestForNavigation,
-        distanceInterval: 10,
-        timeInterval: 5000,
+       accuracy: Location.Accuracy.BestForNavigation,
+       distanceInterval: 30,
         foregroundService: {
           notificationTitle: 'Đang theo dõi hành trình',
           notificationBody: 'Ứng dụng đang ghi nhận vị trí của bạn…',
@@ -228,8 +251,7 @@ export function useLocationTracking() {
       const subscription = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.BestForNavigation,
-          distanceInterval: 10,
-          timeInterval: 5000,
+          distanceInterval: 30,
         },
         (loc) => {
           setLastLocation(loc);

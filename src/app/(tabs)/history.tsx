@@ -39,10 +39,10 @@ export default function TripHistoryScreen() {
     setLoading(true);
     setError(null);
 
-    // Fetch trips with nested locations
+    // 1. Fetch trip metadata (không nested select — tránh 1000-row limit)
     const { data: tripsData, error: tripsError } = await supabase
       .from('trips')
-      .select(`id, created_at, name, is_active, locations(timestamp)`)
+      .select('id, created_at, name, is_active')
       .order('created_at', { ascending: false });
 
     console.log('[History] Trips fetch:', { count: tripsData?.length, error: tripsError?.message });
@@ -59,22 +59,44 @@ export default function TripHistoryScreen() {
       return;
     }
 
-    const summaries: TripSummary[] = tripsData.map((trip: any) => {
-      const locs: { timestamp: string }[] = trip.locations ?? [];
-      // locations are returned in arbitrary order from nested select, sort explicitly
-      const sorted = [...locs].sort(
-        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-      );
-      return {
-        id: trip.id,
-        created_at: trip.created_at,
-        name: trip.name,
-        is_active: trip.is_active,
-        point_count: locs.length,
-        first_ts: sorted.length > 0 ? sorted[0].timestamp : null,
-        last_ts: sorted.length > 0 ? sorted[sorted.length - 1].timestamp : null,
-      };
-    });
+    // 2. For each trip, run parallel aggregate queries (count + first/last timestamp)
+    //    3 queries per trip, each bypasses 1000-row limit:
+    //    - count dùng head:true → không fetch rows
+    //    - first/last dùng .limit(1) → luôn chỉ 1 row
+    const summaries = await Promise.all(
+      tripsData.map(async (trip: any) => {
+        const [countResult, firstResult, lastResult] = await Promise.all([
+          supabase
+            .from('locations')
+            .select('id', { count: 'exact', head: true } as any)
+            .eq('trip_id', trip.id),
+          supabase
+            .from('locations')
+            .select('timestamp')
+            .eq('trip_id', trip.id)
+            .order('timestamp', { ascending: true })
+            .limit(1)
+            .single(),
+          supabase
+            .from('locations')
+            .select('timestamp')
+            .eq('trip_id', trip.id)
+            .order('timestamp', { ascending: false })
+            .limit(1)
+            .single(),
+        ]);
+
+        return {
+          id: trip.id,
+          created_at: trip.created_at,
+          name: trip.name,
+          is_active: trip.is_active,
+          point_count: countResult.count ?? 0,
+          first_ts: firstResult.data?.timestamp ?? null,
+          last_ts: lastResult.data?.timestamp ?? null,
+        } satisfies TripSummary;
+      }),
+    );
 
     setTrips(summaries);
     setLoading(false);

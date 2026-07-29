@@ -78,6 +78,37 @@ function computeSummary(locations: LocationPoint[]): TripSummary {
   };
 }
 
+// ─── Paginated fetch all locations (Supabase defaults to 1000 rows/query) ──
+async function fetchAllLocations(tripId: string): Promise<{ data: LocationPoint[] | null }> {
+  const PAGE_SIZE = 1000;
+  const allLocations: LocationPoint[] = [];
+  let page = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from('locations')
+      .select('*')
+      .eq('trip_id', tripId)
+      .order('timestamp', { ascending: true })
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+    if (error) {
+      console.error('[fetchAllLocations] Error:', error.message);
+      return { data: allLocations.length > 0 ? allLocations : null };
+    }
+
+    if (!data || data.length === 0) break;
+
+    allLocations.push(...(data as LocationPoint[]));
+
+    if (data.length < PAGE_SIZE) break; // Last page
+    page++;
+  }
+
+  console.log(`[fetchAllLocations] Fetched ${allLocations.length} locations in ${page + 1} page(s)`);
+  return { data: allLocations };
+}
+
 export function useTripRealtime(tripId: string): UseTripRealtimeResult {
   const [locations, setLocations] = useState<LocationPoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,11 +126,7 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
         .select('is_active, name')
         .eq('id', tripId)
         .single(),
-      supabase
-        .from('locations')
-        .select('*')
-        .eq('trip_id', tripId)
-        .order('timestamp', { ascending: true }),
+      fetchAllLocations(tripId),
     ]);
 
     if (cancelled()) return false;
@@ -148,16 +175,8 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
       setIsActive(tripData.is_active);
       setTripName(tripData.name);
 
-      // 2. Fetch location history
-      const { data: locData, error: locError } = await supabase
-        .from('locations')
-        .select('*')
-        .eq('trip_id', tripId)
-        .order('timestamp', { ascending: true });
-
-      if (locError) {
-        console.error('[useTripRealtime] Locations fetch error:', locError.message);
-      }
+      // 2. Fetch location history (paginated — gets all locations beyond 1000-row limit)
+      const { data: locData } = await fetchAllLocations(tripId);
 
       if (cancelled) return;
       setLocations((locData as LocationPoint[]) ?? []);
