@@ -74,7 +74,9 @@ export default function HomeScreen() {
       }
 
       load();
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }, []),
   );
 
@@ -137,8 +139,11 @@ export default function HomeScreen() {
               styles.resumeButton,
               pressed && styles.resumeButtonPressed,
             ]}
-            onPress={handleResumeTrip}>
-            <ThemedText style={styles.resumeButtonText}>📍 Đang trong hành trình</ThemedText>
+            onPress={handleResumeTrip}
+          >
+            <ThemedText style={styles.resumeButtonText}>
+              📍 Đang trong hành trình
+            </ThemedText>
             <ThemedText style={styles.resumeButtonSub}>Chạm để xem</ThemedText>
           </Pressable>
         ) : (
@@ -149,11 +154,14 @@ export default function HomeScreen() {
               starting && styles.startButtonDisabled,
             ]}
             onPress={handleStartTrip}
-            disabled={starting}>
+            disabled={starting}
+          >
             {starting ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <ThemedText style={styles.startButtonText}>🚀 Bắt đầu hành trình</ThemedText>
+              <ThemedText style={styles.startButtonText}>
+                🚀 Bắt đầu hành trình
+              </ThemedText>
             )}
           </Pressable>
         )}
@@ -168,9 +176,15 @@ export default function HomeScreen() {
 
         {/* Nút phụ */}
         <Pressable
-          style={({ pressed }) => [styles.secondaryButton, pressed && styles.secondaryButtonPressed]}
-          onPress={handleViewHistory}>
-          <ThemedText style={styles.secondaryButtonText}>📋 Xem lịch sử</ThemedText>
+          style={({ pressed }) => [
+            styles.secondaryButton,
+            pressed && styles.secondaryButtonPressed,
+          ]}
+          onPress={handleViewHistory}
+        >
+          <ThemedText style={styles.secondaryButtonText}>
+            📋 Xem lịch sử
+          </ThemedText>
         </Pressable>
       </SafeAreaView>
     </ThemedView>

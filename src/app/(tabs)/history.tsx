@@ -45,7 +45,10 @@ export default function TripHistoryScreen() {
       .select('id, created_at, name, is_active')
       .order('created_at', { ascending: false });
 
-    console.log('[History] Trips fetch:', { count: tripsData?.length, error: tripsError?.message });
+    console.log('[History] Trips fetch:', {
+      count: tripsData?.length,
+      error: tripsError?.message,
+    });
 
     if (tripsError) {
       setError(tripsError.message);
@@ -100,13 +103,16 @@ export default function TripHistoryScreen() {
 
     setTrips(summaries);
     setLoading(false);
-    console.log('[History] Summaries:', summaries.map((s) => ({
-      id: s.id,
-      point_count: s.point_count,
-      first_ts: s.first_ts,
-      last_ts: s.last_ts,
-      duration: computeDurationFriendly(s.first_ts, s.last_ts),
-    })));
+    console.log(
+      '[History] Summaries:',
+      summaries.map((s) => ({
+        id: s.id,
+        point_count: s.point_count,
+        first_ts: s.first_ts,
+        last_ts: s.last_ts,
+        duration: computeDurationFriendly(s.first_ts, s.last_ts),
+      })),
+    );
   }, []);
 
   useEffect(() => {
@@ -132,9 +138,12 @@ export default function TripHistoryScreen() {
     setRefreshing(false);
   }, [fetchTrips]);
 
-  const handleResume = useCallback((tripId: string) => {
-    router.replace(`/tracking?tripId=${tripId}`);
-  }, [router]);
+  const handleResume = useCallback(
+    (tripId: string) => {
+      router.replace(`/tracking?tripId=${tripId}`);
+    },
+    [router],
+  );
 
   // ── Render ────────────────────────────────────────────────
 
@@ -251,7 +260,9 @@ function TripCard({
           </ThemedView>
           {trip.is_active && (
             <ThemedView style={styles.activeBadge}>
-              <ThemedText style={styles.activeBadgeText}>● Đang chạy</ThemedText>
+              <ThemedText style={styles.activeBadgeText}>
+                ● Đang chạy
+              </ThemedText>
             </ThemedView>
           )}
         </ThemedView>
@@ -265,7 +276,10 @@ function TripCard({
         {/* Row 3: actions */}
         <ThemedView style={styles.actionsRow}>
           <Pressable
-            style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
+            style={({ pressed }) => [
+              styles.actionBtn,
+              pressed && styles.actionBtnPressed,
+            ]}
             onPress={(e) => {
               e.stopPropagation();
               trip.is_active ? onResume() : onOpen();
@@ -276,7 +290,10 @@ function TripCard({
             </ThemedText>
           </Pressable>
           <Pressable
-            style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
+            style={({ pressed }) => [
+              styles.actionBtn,
+              pressed && styles.actionBtnPressed,
+            ]}
             onPress={(e) => {
               e.stopPropagation();
               onShare();

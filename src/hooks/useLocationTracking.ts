@@ -73,13 +73,13 @@ TaskManager.defineTask(LOCATION_TRACKING_TASK_NAME, async ({ data, error }) => {
     return;
   }
 
-  const rows: Array<{
+  const rows: {
     trip_id: string;
     lat: number;
     lng: number;
     speed: number | null;
     timestamp: string;
-  }> = [];
+  }[] = [];
 
   for (const loc of locations) {
     const { latitude, longitude, speed } = loc.coords;
@@ -116,13 +116,18 @@ TaskManager.defineTask(LOCATION_TRACKING_TASK_NAME, async ({ data, error }) => {
 
 export type TrackingResult =
   | { success: true }
-  | { success: false; reason: 'permission_denied' | 'permission_foreground_only' };
+  | {
+      success: false;
+      reason: 'permission_denied' | 'permission_foreground_only';
+    };
 
 export function useLocationTracking() {
   const [isTracking, setIsTracking] = useState(false);
-  const [lastLocation, setLastLocation] = useState<Location.LocationObject | null>(null);
+  const [lastLocation, setLastLocation] =
+    useState<Location.LocationObject | null>(null);
   const [locationCount, setLocationCount] = useState(0);
-  const [permissionStatus, setPermissionStatus] = useState<Location.PermissionStatus | null>(null);
+  const [permissionStatus, setPermissionStatus] =
+    useState<Location.PermissionStatus | null>(null);
   const watchRef = useRef<Location.LocationSubscription | null>(null);
   const countRef = useRef(0);
 
@@ -163,51 +168,64 @@ export function useLocationTracking() {
 
       // Push điểm xuất phát ngay lập tức (không chờ distanceInterval)
       const startPos = await Location.getCurrentPositionAsync({
-       accuracy: Location.Accuracy.BestForNavigation,
+        accuracy: Location.Accuracy.BestForNavigation,
       });
       const { latitude, longitude, speed } = startPos.coords;
-      console.log('[startTracking] Pushing start point:', latitude.toFixed(6), longitude.toFixed(6));
+      console.log(
+        '[startTracking] Pushing start point:',
+        latitude.toFixed(6),
+        longitude.toFixed(6),
+      );
 
       const { error: startError } = await supabase.from('locations').insert({
-       trip_id: tripId,
-       lat: latitude,
-       lng: longitude,
-       speed: speed ?? null,
-       timestamp: new Date(startPos.timestamp).toISOString(),
+        trip_id: tripId,
+        lat: latitude,
+        lng: longitude,
+        speed: speed ?? null,
+        timestamp: new Date(startPos.timestamp).toISOString(),
       });
 
       if (startError) {
-       console.error('[startTracking] Start point insert error:', startError.message);
+        console.error(
+          '[startTracking] Start point insert error:',
+          startError.message,
+        );
       } else {
-       lastPushedLat = latitude;
-       lastPushedLng = longitude;
-       countRef.current = 1;
-       setLocationCount(1);
-       setLastLocation(startPos);
+        lastPushedLat = latitude;
+        lastPushedLng = longitude;
+        countRef.current = 1;
+        setLocationCount(1);
+        setLastLocation(startPos);
       }
 
       // Foreground watch — cập nhật UI (chỉ đếm điểm được push)
       watchRef.current?.remove();
       const subscription = await Location.watchPositionAsync(
-       {
-         accuracy: Location.Accuracy.BestForNavigation,
-         distanceInterval: 30,
-       },
-       (loc) => {
-         setLastLocation(loc);
-         // Chỉ tăng count nếu điểm này đủ điều kiện push (đồng bộ với BG task)
-         if (shouldPush(loc.coords.latitude, loc.coords.longitude, loc.coords.speed ?? null)) {
-           countRef.current += 1;
-           setLocationCount(countRef.current);
-         }
-       },
+        {
+          accuracy: Location.Accuracy.BestForNavigation,
+          distanceInterval: 30,
+        },
+        (loc) => {
+          setLastLocation(loc);
+          // Chỉ tăng count nếu điểm này đủ điều kiện push (đồng bộ với BG task)
+          if (
+            shouldPush(
+              loc.coords.latitude,
+              loc.coords.longitude,
+              loc.coords.speed ?? null,
+            )
+          ) {
+            countRef.current += 1;
+            setLocationCount(countRef.current);
+          }
+        },
       );
       watchRef.current = subscription;
 
       // Background task với foreground service notification
       await Location.startLocationUpdatesAsync(LOCATION_TRACKING_TASK_NAME, {
-       accuracy: Location.Accuracy.BestForNavigation,
-       distanceInterval: 30,
+        accuracy: Location.Accuracy.BestForNavigation,
+        distanceInterval: 30,
         foregroundService: {
           notificationTitle: 'Đang theo dõi hành trình',
           notificationBody: 'Ứng dụng đang ghi nhận vị trí của bạn…',
@@ -230,7 +248,8 @@ export function useLocationTracking() {
   const resumeTracking = useCallback(
     async (tripId: string): Promise<TrackingResult> => {
       // Kiểm tra quyền (có thể đã bị thu hồi)
-      const { status: fgStatus } = await Location.getForegroundPermissionsAsync();
+      const { status: fgStatus } =
+        await Location.getForegroundPermissionsAsync();
       if (fgStatus !== Location.PermissionStatus.GRANTED) {
         return { success: false, reason: 'permission_denied' };
       }
@@ -255,7 +274,13 @@ export function useLocationTracking() {
         },
         (loc) => {
           setLastLocation(loc);
-          if (shouldPush(loc.coords.latitude, loc.coords.longitude, loc.coords.speed ?? null)) {
+          if (
+            shouldPush(
+              loc.coords.latitude,
+              loc.coords.longitude,
+              loc.coords.speed ?? null,
+            )
+          ) {
             countRef.current += 1;
             setLocationCount(countRef.current);
           }
