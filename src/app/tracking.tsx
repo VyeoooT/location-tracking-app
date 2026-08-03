@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { SyncToast } from '@/components/sync-toast';
 import { VIEWER_BASE_URL } from '@/constants/config';
 import { Spacing } from '@/constants/theme';
 import {
@@ -140,6 +141,7 @@ export default function TrackingScreen() {
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
+        <SyncToast />
         {/* Header */}
         <ThemedView style={styles.header}>
           <ThemedView style={styles.headerLeft}>

@@ -43,5 +43,5 @@ example
 /android
 /.jira
 /.codegraph
-
-/feedback.md
+/.opencode
+AGENTS.md

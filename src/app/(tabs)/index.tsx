@@ -54,15 +54,16 @@ export default function HomeScreen() {
             return;
           }
 
-          // Verify với Supabase
-          const { data } = await supabase
+          // Verify với Supabase — offline (query error) thì coi trip vẫn active
+          const { data, error } = await supabase
             .from('trips')
             .select('id, is_active')
             .eq('id', storedId)
             .single();
 
           if (!cancelled) {
-            setActiveTripId(data?.is_active ? storedId : null);
+            const stillActive = error != null ? true : data?.is_active === true;
+            setActiveTripId(stillActive ? storedId : null);
             setCheckingTrip(false);
           }
         } catch {

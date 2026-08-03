@@ -1,21 +1,21 @@
-import { useState, useEffect, useCallback } from 'react';
+import * as Clipboard from 'expo-clipboard';
+import { useRouter } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
 import {
-  StyleSheet,
-  FlatList,
-  Pressable,
   ActivityIndicator,
+  FlatList,
+  Linking,
+  Pressable,
   RefreshControl,
   Share,
-  Linking,
+  StyleSheet,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as Clipboard from 'expo-clipboard';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { VIEWER_BASE_URL } from '@/constants/config';
+import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 interface TripSummary {
@@ -103,16 +103,6 @@ export default function TripHistoryScreen() {
 
     setTrips(summaries);
     setLoading(false);
-    console.log(
-      '[History] Summaries:',
-      summaries.map((s) => ({
-        id: s.id,
-        point_count: s.point_count,
-        first_ts: s.first_ts,
-        last_ts: s.last_ts,
-        duration: computeDurationFriendly(s.first_ts, s.last_ts),
-      })),
-    );
   }, []);
 
   useEffect(() => {
