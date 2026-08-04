@@ -34,6 +34,13 @@ export default function TrackingScreen() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [copyLabel, setCopyLabel] = useState('Sao chép link');
 
+  // Redirect về home nếu thiếu tripId — tránh crash khi mở sai link
+  useEffect(() => {
+    if (!tripId) {
+      router.replace('/(tabs)');
+    }
+  }, [tripId, router]);
+
   // Bắt đầu hoặc nối lại tracking khi vào màn hình
   useEffect(() => {
     if (!tripId) return;
@@ -137,6 +144,9 @@ export default function TrackingScreen() {
   const lat = lastLocation?.coords.latitude.toFixed(6) ?? '--';
   const lng = lastLocation?.coords.longitude.toFixed(6) ?? '--';
   const elapsedStr = formatElapsed(elapsed);
+
+  // Không render màn hình tracking nếu thiếu tripId
+  if (!tripId) return null;
 
   return (
     <ThemedView style={styles.container}>

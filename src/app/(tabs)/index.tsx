@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, Pressable, ActivityIndicator } from 'react-native';
+import { StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
@@ -92,12 +92,22 @@ export default function HomeScreen() {
 
       if (error || !data) {
         console.error('[Home] Failed to create trip:', error?.message);
+        Alert.alert(
+          'Không thể bắt đầu hành trình',
+          'Đã có lỗi khi tạo hành trình mới. Vui lòng kiểm tra kết nối và thử lại.',
+        );
         return;
       }
 
       console.log('[Home] Trip created:', JSON.stringify(data));
       setActiveTripId(data.id);
       router.replace(`/tracking?tripId=${data.id}`);
+    } catch (error) {
+      console.error('[Home] Unexpected error creating trip:', error);
+      Alert.alert(
+        'Không thể bắt đầu hành trình',
+        'Đã có lỗi không mong muốn. Vui lòng thử lại.',
+      );
     } finally {
       setStarting(false);
     }
