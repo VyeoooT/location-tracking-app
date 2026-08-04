@@ -287,18 +287,35 @@ export function useLocationTracking() {
         return { success: false, reason: 'permission_denied' };
       }
 
-      // Restore locationCount từ DB + local queue cho trip này
-      const [{ count, error: countError }, queuedCount] = await Promise.all([
+      // Restore locationCount + filter state từ DB + local queue cho trip này
+      const [
+        { count, error: countError },
+        queuedCount,
+        { data: lastLoc, error: lastLocError },
+      ] = await Promise.all([
         supabase
           .from('locations')
           .select('id', { count: 'exact', head: true } as any)
           .eq('trip_id', tripId),
         getQueuedLocationCountForTrip(tripId),
+        supabase
+          .from('locations')
+          .select('lat, lng')
+          .eq('trip_id', tripId)
+          .order('timestamp', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
       ]);
 
       if (!countError && count != null) {
         countRef.current = count + queuedCount;
         setLocationCount(count + queuedCount);
+      }
+
+      // Restore filter state: lấy điểm cuối cùng đã push lên DB làm reference
+      // để điểm đầu tiên sau resume không bị push lại (lastPushed = null).
+      if (!lastLocError && lastLoc) {
+        await setLastPushedLocation({ lat: lastLoc.lat, lng: lastLoc.lng });
       }
 
       // Foreground watch — cập nhật UI (chỉ đếm điểm được push)
