@@ -39,69 +39,25 @@ export default function TripHistoryScreen() {
     setLoading(true);
     setError(null);
 
-    // 1. Fetch trip metadata (không nested select — tránh 1000-row limit)
-    const { data: tripsData, error: tripsError } = await supabase
-      .from('trips')
-      .select('id, created_at, name, is_active')
+    // View trip_summaries gộp count + first/last timestamp trong 1 query
+    // (không còn 3N queries như trước — xem scripts/init.sql)
+    const { data, error } = await supabase
+      .from('trip_summaries')
+      .select('id, created_at, name, is_active, point_count, first_ts, last_ts')
       .order('created_at', { ascending: false });
 
-    console.log('[History] Trips fetch:', {
-      count: tripsData?.length,
-      error: tripsError?.message,
+    console.log('[History] Summaries fetch:', {
+      count: data?.length,
+      error: error?.message,
     });
 
-    if (tripsError) {
-      setError(tripsError.message);
+    if (error) {
+      setError(error.message);
       setLoading(false);
       return;
     }
 
-    if (!tripsData || tripsData.length === 0) {
-      setTrips([]);
-      setLoading(false);
-      return;
-    }
-
-    // 2. For each trip, run parallel aggregate queries (count + first/last timestamp)
-    //    3 queries per trip, each bypasses 1000-row limit:
-    //    - count dùng head:true → không fetch rows
-    //    - first/last dùng .limit(1) → luôn chỉ 1 row
-    const summaries = await Promise.all(
-      tripsData.map(async (trip: any) => {
-        const [countResult, firstResult, lastResult] = await Promise.all([
-          supabase
-            .from('locations')
-            .select('id', { count: 'exact', head: true } as any)
-            .eq('trip_id', trip.id),
-          supabase
-            .from('locations')
-            .select('timestamp')
-            .eq('trip_id', trip.id)
-            .order('timestamp', { ascending: true })
-            .limit(1)
-            .single(),
-          supabase
-            .from('locations')
-            .select('timestamp')
-            .eq('trip_id', trip.id)
-            .order('timestamp', { ascending: false })
-            .limit(1)
-            .single(),
-        ]);
-
-        return {
-          id: trip.id,
-          created_at: trip.created_at,
-          name: trip.name,
-          is_active: trip.is_active,
-          point_count: countResult.count ?? 0,
-          first_ts: firstResult.data?.timestamp ?? null,
-          last_ts: lastResult.data?.timestamp ?? null,
-        } satisfies TripSummary;
-      }),
-    );
-
-    setTrips(summaries);
+    setTrips((data ?? []) as TripSummary[]);
     setLoading(false);
   }, []);
 
@@ -119,7 +75,10 @@ export default function TripHistoryScreen() {
 
   const handleShare = useCallback(async (tripId: string) => {
     const url = `${VIEWER_BASE_URL}/${tripId}`;
-    await Share.share({ message: `Theo dõi hành trình của tôi: ${url}`, url });
+    await Share.share({
+      message: `Bé yêu theo dõi Anh trên maps nha: ${url}`,
+      url,
+    });
   }, []);
 
   const handleRefresh = useCallback(async () => {
