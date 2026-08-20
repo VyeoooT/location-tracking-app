@@ -25,6 +25,7 @@ jest.mock('@/hooks/useLocationTracking', () => ({
   useLocationTracking: () => ({
     isTracking: false,
     lastLocation: null,
+    displayLocation: null,
     locationCount: 0,
     startTracking: jest.fn().mockResolvedValue({ success: true }),
     resumeTracking: jest.fn().mockResolvedValue({ success: true }),

@@ -24,13 +24,15 @@ export default function HomeScreen() {
       let cancelled = false;
 
       async function load() {
-        // Fetch trip count
-        supabase
-          .from('trips')
-          .select('id', { count: 'exact', head: true } as any)
-          .then(({ count }: { count: number | null }) => {
-            if (!cancelled) setTripCount(count ?? 0);
-          });
+        // Fetch trip count — lỗi thì giữ '--', không làm hỏng flow active trip
+        try {
+          const { count } = await supabase
+            .from('trips')
+            .select('id', { count: 'exact', head: true } as any);
+          if (!cancelled) setTripCount(count ?? 0);
+        } catch (err) {
+          console.warn('[Home] Trip count fetch failed:', err);
+        }
 
         // Check active trip
         try {

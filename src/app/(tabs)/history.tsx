@@ -36,9 +36,6 @@ export default function TripHistoryScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchTrips = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-
     // View trip_summaries gộp count + first/last timestamp trong 1 query
     // (không còn 3N queries như trước — xem scripts/init.sql)
     const { data, error } = await supabase
@@ -62,7 +59,9 @@ export default function TripHistoryScreen() {
   }, []);
 
   useEffect(() => {
-    fetchTrips();
+    (async () => {
+      await fetchTrips();
+    })();
   }, [fetchTrips]);
 
   const handleOpenViewer = useCallback((tripId: string) => {
@@ -83,6 +82,7 @@ export default function TripHistoryScreen() {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
+    setError(null);
     await fetchTrips();
     setRefreshing(false);
   }, [fetchTrips]);
@@ -231,7 +231,11 @@ function TripCard({
             ]}
             onPress={(e) => {
               e.stopPropagation();
-              trip.is_active ? onResume() : onOpen();
+              if (trip.is_active) {
+                onResume();
+              } else {
+                onOpen();
+              }
             }}
           >
             <ThemedText style={styles.actionBtnText}>

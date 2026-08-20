@@ -1,9 +1,13 @@
 import { useEffect, useRef } from 'react';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { NetworkStatusBanner } from '@/components/network-status-banner';
 import { useNetworkStatus } from '@/hooks/use-network-status';
 import { flushQueue } from '@/lib/location-queue';
+
+SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const { status } = useNetworkStatus();
@@ -25,6 +29,7 @@ export default function RootLayout() {
   return (
     <>
       <NetworkStatusBanner status={status} />
+      <AnimatedSplashOverlay />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen

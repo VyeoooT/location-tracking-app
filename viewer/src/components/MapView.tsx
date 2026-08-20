@@ -1,7 +1,14 @@
-import { useEffect, useRef, useMemo } from 'react';
-import { MapContainer, TileLayer, Polyline, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useEffect, useMemo, useRef } from 'react';
+import {
+  MapContainer,
+  Marker,
+  Polyline,
+  Popup,
+  TileLayer,
+  useMap,
+} from 'react-leaflet';
 
 // ─── Custom cute marker icon (SVG duck) ───────────────────────
 
@@ -44,8 +51,10 @@ const currentLocationIcon = L.divIcon({
 
 /** Haversine distance in meters between two lat/lng points */
 function haversineMeters(
-  lat1: number, lng1: number,
-  lat2: number, lng2: number,
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
 ): number {
   const R = 6_371_000;
   const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -89,7 +98,10 @@ function MapCenterUpdater({ position }: { position: [number, number] | null }) {
     if (position) {
       // Chỉ panTo khi điểm mới đủ khác biệt (tránh rung liên tục)
       const prev = prevRef.current;
-      if (!prev || haversineMeters(prev[0], prev[1], position[0], position[1]) > 10) {
+      if (
+        !prev ||
+        haversineMeters(prev[0], prev[1], position[0], position[1]) > 10
+      ) {
         map.panTo(position, { animate: false });
         prevRef.current = position;
       }
@@ -108,7 +120,10 @@ export default function MapView({
 }: MapViewProps) {
   // Downsample trail for smooth rendering when > 2000 points
   const displayTrail = useMemo(
-    () => (trailPositions.length > 2000 ? downsampleTrail(trailPositions, 2000) : trailPositions),
+    () =>
+      trailPositions.length > 2000
+        ? downsampleTrail(trailPositions, 2000)
+        : trailPositions,
     [trailPositions],
   );
 

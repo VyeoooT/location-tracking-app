@@ -21,7 +21,7 @@ export default function TrackingScreen() {
   const router = useRouter();
   const { tripId } = useLocalSearchParams<{ tripId: string }>();
   const {
-    isTracking,
+    displayLocation,
     lastLocation,
     locationCount,
     startTracking,
@@ -88,8 +88,7 @@ export default function TrackingScreen() {
       cancelled = true;
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tripId]);
+  }, [tripId, resumeTracking, startTracking]);
 
   const handleStop = () => {
     Alert.alert(
@@ -137,12 +136,14 @@ export default function TrackingScreen() {
     }
   };
 
+  // Tọa độ hiển thị dùng displayLocation (chỉ cập nhật khi di chuyển thật sự)
+  // để đứng yên không bị nhảy theo GPS drift. Speed dùng lastLocation trực tiếp.
   const speedKmh =
     lastLocation?.coords.speed != null
       ? (lastLocation.coords.speed * 3.6).toFixed(1)
       : '--';
-  const lat = lastLocation?.coords.latitude.toFixed(6) ?? '--';
-  const lng = lastLocation?.coords.longitude.toFixed(6) ?? '--';
+  const lat = displayLocation?.coords.latitude.toFixed(6) ?? '--';
+  const lng = displayLocation?.coords.longitude.toFixed(6) ?? '--';
   const elapsedStr = formatElapsed(elapsed);
 
   // Không render màn hình tracking nếu thiếu tripId

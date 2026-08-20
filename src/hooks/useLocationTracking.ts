@@ -11,7 +11,6 @@ import {
   getQueuedLocationCountForTrip,
   getLastPushedLocation,
   setLastPushedLocation,
-  LastPushedLocation,
 } from '@/lib/async-storage';
 import {
   insertWithRetry,
@@ -19,55 +18,12 @@ import {
   flushQueueQuick,
   flushQueue,
 } from '@/lib/location-queue';
+import { shouldPush } from '@/lib/gps-filter';
 
 export const LOCATION_TRACKING_TASK_NAME = 'LOCATION_TRACKING';
 
-// ─── GPS filtering helpers (global scope) ──────────────────────
-
-/** Tính khoảng cách Haversine giữa 2 điểm (mét) */
-function haversineDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const R = 6_371_000; // Bán kính trái đất (mét)
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
 // Lưu điểm cuối cùng đã push để tính khoảng cách — persist trong AsyncStorage
 // để foreground hook và background task (có thể khác JS context) dùng chung.
-
-const MIN_SPEED_MPS = 1.0; // 3.6 km/h — dưới ngưỡng này coi là đứng yên
-const MIN_DISTANCE_M = 20; // 20 mét — dịch chuyển tối thiểu mới push
-
-/**
- * Kiểm tra xem location có đáng push không.
- * Logic: speed cao → push luôn. Speed thấp → kiểm tra khoảng cách.
- * lastPushed = điểm gần nhất đã push thành công (null nếu chưa có).
- */
-function shouldPush(
-  lat: number,
-  lng: number,
-  speed: number | null,
-  lastPushed: LastPushedLocation | null,
-): boolean {
-  // Speed cao → chắc chắn đang di chuyển
-  if (speed != null && speed >= MIN_SPEED_MPS) return true;
-
-  // Speed thấp / null → kiểm tra khoảng cách với điểm cuối
-  if (lastPushed == null) return true; // điểm đầu tiên luôn push
-
-  const dist = haversineDistance(lastPushed.lat, lastPushed.lng, lat, lng);
-  return dist > MIN_DISTANCE_M;
-}
 
 // ─── Background task (global scope) ────────────────────────────
 // Chạy ngay cả khi app ở background. Tự push location lên Supabase (có filter).
@@ -101,7 +57,7 @@ TaskManager.defineTask(LOCATION_TRACKING_TASK_NAME, async ({ data, error }) => {
   for (const loc of locations) {
     const { latitude, longitude, speed } = loc.coords;
 
-    if (shouldPush(latitude, longitude, speed ?? null, candidate)) {
+    if (shouldPush(latitude, longitude, candidate)) {
       rows.push({
         trip_id: tripId,
         lat: latitude,
@@ -150,6 +106,11 @@ export function useLocationTracking() {
   const [isTracking, setIsTracking] = useState(false);
   const [lastLocation, setLastLocation] =
     useState<Location.LocationObject | null>(null);
+  // Vị trí hiển thị — chỉ cập nhật khi điểm đủ điều kiện push, nên đứng yên
+  // thì tọa độ không bị nhảy theo GPS drift.
+  const [displayLocation, setDisplayLocation] = useState<{
+    coords: { latitude: number; longitude: number };
+  } | null>(null);
   const [locationCount, setLocationCount] = useState(0);
   const [permissionStatus, setPermissionStatus] =
     useState<Location.PermissionStatus | null>(null);
@@ -181,16 +142,10 @@ export function useLocationTracking() {
   const handleWatchLocation = useCallback((loc: Location.LocationObject) => {
     setLastLocation(loc);
     getLastPushedLocation().then((lastPushed) => {
-      if (
-        shouldPush(
-          loc.coords.latitude,
-          loc.coords.longitude,
-          loc.coords.speed ?? null,
-          lastPushed,
-        )
-      ) {
+      if (shouldPush(loc.coords.latitude, loc.coords.longitude, lastPushed)) {
         countRef.current += 1;
         setLocationCount(countRef.current);
+        setDisplayLocation(loc);
       }
     });
   }, []);
@@ -237,6 +192,7 @@ export function useLocationTracking() {
         countRef.current = 1;
         setLocationCount(1);
         setLastLocation(startPos);
+        setDisplayLocation(startPos);
       } else {
         await saveToQueue([startRow]);
         console.warn(
@@ -316,6 +272,9 @@ export function useLocationTracking() {
       // để điểm đầu tiên sau resume không bị push lại (lastPushed = null).
       if (!lastLocError && lastLoc) {
         await setLastPushedLocation({ lat: lastLoc.lat, lng: lastLoc.lng });
+        setDisplayLocation({
+          coords: { latitude: lastLoc.lat, longitude: lastLoc.lng },
+        });
       }
 
       // Foreground watch — cập nhật UI (chỉ đếm điểm được push)
@@ -353,6 +312,36 @@ export function useLocationTracking() {
     await removeStoredTripId();
     await removeTripStartTime();
 
+    // Push điểm kết thúc để History tính duration = start → stop chính xác.
+    // Trước đây chỉ có điểm xuất phát nên trip đứng yên hiển thị "0 phút".
+    if (tripId) {
+      let endPosTimer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const endPos = await Promise.race([
+          Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          }),
+          // Giới hạn thời gian chờ fix GPS để không treo luồng "Dừng"
+          new Promise<never>((_, reject) => {
+            endPosTimer = setTimeout(
+              () => reject(new Error('getCurrentPositionAsync timed out')),
+              8_000,
+            );
+          }),
+        ]).finally(() => clearTimeout(endPosTimer));
+        const endRow = {
+          trip_id: tripId,
+          lat: endPos.coords.latitude,
+          lng: endPos.coords.longitude,
+          speed: endPos.coords.speed ?? null,
+          timestamp: new Date(endPos.timestamp).toISOString(),
+        };
+        await insertWithRetry([endRow]);
+      } catch (err) {
+        console.warn('[stopTracking] Không chụp được điểm kết thúc:', err);
+      }
+    }
+
     // Best-effort flush leftover queue (fire-and-forget, không chặn UI)
     flushQueue().catch(() => {});
 
@@ -363,6 +352,7 @@ export function useLocationTracking() {
   return {
     isTracking,
     lastLocation,
+    displayLocation,
     locationCount,
     permissionStatus,
     startTracking,
