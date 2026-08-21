@@ -1,18 +1,19 @@
-import { Routes, Route } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import TripViewerPage from './pages/TripViewerPage';
 
 function HomePage() {
   return (
-    <div style={{
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      height: '100vh',
-      fontFamily: 'system-ui, sans-serif',
-    }}>
-      <h1>Location Tracker Viewer</h1>
-      <p>Visit <code>/trip/:tripId</code> to view a trip.</p>
+    <div className="flex h-screen flex-col items-center justify-center">
+      <h1 className="text-2xl font-bold text-neutral-900">
+        Location Tracker Viewer
+      </h1>
+      <p className="mt-2 text-neutral-500">
+        Visit{' '}
+        <code className="rounded bg-neutral-100 px-1.5 py-0.5 font-mono text-sm">
+          /trip/:tripId
+        </code>{' '}
+        to view a trip.
+      </p>
     </div>
   );
 }

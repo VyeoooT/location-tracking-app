@@ -8,14 +8,22 @@ const DEFAULT_CENTER: [number, number] = [21.0285, 105.8542];
 
 function formatTime(isoString: string): string {
   const d = new Date(isoString);
-  return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return d.toLocaleTimeString('vi-VN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 
 function formatDateTime(isoString: string): string {
   const d = new Date(isoString);
   return d.toLocaleString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   });
 }
 
@@ -40,7 +48,7 @@ function formatDistance(km: number): string {
 
 export default function TripViewerPage() {
   const { tripId } = useParams<{ tripId: string }>();
-  const { locations, currentLocation, isLoading, isActive, tripName, tripSummary } =
+  const { locations, currentLocation, isLoading, isActive, tripSummary } =
     useTripRealtime(tripId ?? '');
 
   const trailPositions: [number, number][] = useMemo(
@@ -52,116 +60,110 @@ export default function TripViewerPage() {
     ? [currentLocation.lat, currentLocation.lng]
     : DEFAULT_CENTER;
 
-  const currentSpeed = currentLocation ? formatSpeed(currentLocation.speed) : '--';
+  const currentSpeed = currentLocation
+    ? formatSpeed(currentLocation.speed)
+    : '--';
 
   if (isLoading) {
     return (
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100vh',
-        fontFamily: 'system-ui, sans-serif',
-        fontSize: '18px',
-        color: '#555',
-      }}>
+      <div className="flex h-screen items-center justify-center text-lg text-neutral-500">
         Đang tải hành trình…
       </div>
     );
   }
 
   const summaryRow = (label: string, value: string) => (
-    <div style={{
-      display: 'flex', justifyContent: 'space-between', padding: '6px 0',
-      borderBottom: '1px solid #eee',
-    }}>
-      <span style={{ color: '#666' }}>{label}</span>
-      <span style={{ fontWeight: 600, color: '#111' }}>{value}</span>
+    <div className="flex sm:flex-row flex-col gap-2">
+      <span className="text-neutral-500">{label}:</span>
+      <span className="font-semibold text-neutral-900">{value}</span>
     </div>
   );
 
   return (
-    <div style={{ height: '100vh', width: '100vw', position: 'relative' }}>
+    <div className="relative h-screen w-screen">
       <MapView
         center={mapCenter}
         trailPositions={trailPositions}
         currentPosition={
-          currentLocation
-            ? [currentLocation.lat, currentLocation.lng]
-            : null
+          currentLocation ? [currentLocation.lat, currentLocation.lng] : null
         }
         currentSpeed={currentSpeed}
       />
 
-      {isActive ? (
-        /* Active trip — compact info panel */
-        <div style={{
-          position: 'absolute', top: 16, right: 16, zIndex: 1000,
-          background: 'rgba(255, 255, 255, 0.92)',
-          backdropFilter: 'blur(8px)',
-          borderRadius: 12, padding: '12px 16px',
-          boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
-          fontFamily: 'system-ui, sans-serif', fontSize: 14, minWidth: 180,
-        }}>
-          <div style={{ marginBottom: 8, fontWeight: 600, color: '#111', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{
-              display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-              background: '#22c55e', animation: 'pulse 1.5s infinite',
-            }} />
-            Đang theo dõi
-          </div>
-          <div style={{ color: '#555' }}>
-            📍 {locations.length} điểm
-          </div>
-          <div style={{ color: '#555' }}>
-            🕐 {currentLocation ? formatTime(currentLocation.timestamp) : '--'}
-          </div>
-          <div style={{ color: '#555' }}>
-            🏃 {currentSpeed} km/h
-          </div>
-        </div>
-      ) : (
-        /* Ended trip — summary panel */
-        <div style={{
-          position: 'absolute', top: 16, left: 16, zIndex: 1000,
-          background: 'rgba(255, 255, 255, 0.94)',
-          backdropFilter: 'blur(12px)',
-          borderRadius: 14, padding: '16px 20px',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.15)',
-          fontFamily: 'system-ui, sans-serif', fontSize: 14, minWidth: 240, maxWidth: 300,
-        }}>
-          <div style={{
-            fontSize: 16, fontWeight: 700, color: '#111', marginBottom: 12,
-          }}>
-            🛑 Hành trình đã kết thúc
-          </div>
-          {tripName && (
-            <div style={{
-              marginBottom: 8, color: '#444', fontWeight: 500,
-            }}>
-              {tripName}
-            </div>
-          )}
-          {tripSummary ? (
+      <div
+        className={`absolute sm:top-4 top-2 left-0 right-0 z-[1000] border-[1.8px] border-white overflow-hidden mx-auto max-w-[95%] max-sm:w-full ${isActive ? 'sm:max-w-1/3 sm:w-full rounded-full' : 'sm:max-w-none w-fit rounded-xl'}`}
+      >
+        <div className="absolute inset-0 size-full bg-gray-400/10 bg-clip-padding backdrop-filter backdrop-blur-sm"></div>
+        <div className="relative px-3 pt-3.5 pb-3">
+          {isActive ? (
+            /* Active trip — compact info panel */
             <>
-              {summaryRow('📅 Bắt đầu', formatDateTime(tripSummary.startTime))}
-              {summaryRow('🏁 Kết thúc', formatDateTime(tripSummary.endTime))}
-              {summaryRow('⏱ Thời lượng', formatDuration(tripSummary.durationSeconds))}
-              {summaryRow('📏 Quãng đường', formatDistance(tripSummary.totalDistanceKm))}
-              {summaryRow('⚡ Tốc độ tối đa', tripSummary.maxSpeedKmh != null ? `${tripSummary.maxSpeedKmh.toFixed(1)} km/h` : '--')}
-              {summaryRow('📍 Tổng điểm', `${tripSummary.totalPoints}`)}
+              <div className="flex justify-center items-center gap-2 font-semibold text-neutral-900">
+                <span className="inline-block size-2.5 animate-pulse rounded-full bg-green-600" />
+                Đang hoạt động
+              </div>
+              <div className="flex justify-center gap-6 mt-3.5">
+                <div className="text-neutral-700/80">
+                  📍 {locations.length} điểm
+                </div>
+                <div className="text-neutral-700/80">
+                  🕐{' '}
+                  {currentLocation
+                    ? formatTime(currentLocation.timestamp)
+                    : '--'}
+                </div>
+                <div className="text-neutral-700/80">
+                  🏃 {currentSpeed} km/h
+                </div>
+              </div>
             </>
-          ) : locations.length > 0 ? (
-            <div style={{ color: '#999', marginTop: 8 }}>
-              Chỉ có 1 điểm — không đủ dữ liệu tổng hợp
-            </div>
           ) : (
-            <div style={{ color: '#999', marginTop: 8 }}>
-              Không có dữ liệu vị trí
-            </div>
+            /* Ended trip — summary panel */
+            <>
+              <div className="flex justify-center items-center gap-2 font-semibold text-neutral-900">
+                <span className="inline-block size-2.5 rounded-full bg-red-600" />
+                Hành trình đã kết thúc
+              </div>
+              {tripSummary ? (
+                <div className="grid grid-cols-2 gap-y-3 gap-x-6 mt-3.5">
+                  {summaryRow(
+                    '📅 Bắt đầu',
+                    formatDateTime(tripSummary.startTime),
+                  )}
+                  {summaryRow(
+                    '🏁 Kết thúc',
+                    formatDateTime(tripSummary.endTime),
+                  )}
+                  {summaryRow(
+                    '⏱ Thời gian',
+                    formatDuration(tripSummary.durationSeconds),
+                  )}
+                  {summaryRow(
+                    '📏 Quãng đường',
+                    formatDistance(tripSummary.totalDistanceKm),
+                  )}
+                  {summaryRow(
+                    '⚡ Tốc độ tối đa',
+                    tripSummary.maxSpeedKmh != null
+                      ? `${tripSummary.maxSpeedKmh.toFixed(1)} km/h`
+                      : '--',
+                  )}
+                  {summaryRow('📍 Tổng điểm', `${tripSummary.totalPoints}`)}
+                </div>
+              ) : locations.length > 0 ? (
+                <div className="mt-3.5 text-center text-sm text-neutral-600/80">
+                  Không phát sinh dữ liệu di chuyển <br /> (Chỉ có một điểm vị
+                  trí duy trí duy nhất)
+                </div>
+              ) : (
+                <div className="mt-3.5 text-center text-sm text-neutral-600/80">
+                  Không có dữ liệu vị trí
+                </div>
+              )}
+            </>
           )}
         </div>
-      )}
+      </div>
     </div>
   );
 }

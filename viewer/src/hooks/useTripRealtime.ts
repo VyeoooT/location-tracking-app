@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
 export interface LocationPoint {
@@ -30,8 +30,10 @@ interface UseTripRealtimeResult {
 
 // ─── Haversine distance between two lat/lng points (returns km) ──
 function haversineKm(
-  lat1: number, lng1: number,
-  lat2: number, lng2: number,
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
 ): number {
   const R = 6371; // Earth radius in km
   const toRad = (deg: number) => (deg * Math.PI) / 180;
@@ -53,8 +55,10 @@ function computeSummary(locations: LocationPoint[]): TripSummary {
   let totalDistanceKm = 0;
   for (let i = 1; i < locations.length; i++) {
     totalDistanceKm += haversineKm(
-      locations[i - 1].lat, locations[i - 1].lng,
-      locations[i].lat, locations[i].lng,
+      locations[i - 1].lat,
+      locations[i - 1].lng,
+      locations[i].lat,
+      locations[i].lng,
     );
   }
 
@@ -79,7 +83,9 @@ function computeSummary(locations: LocationPoint[]): TripSummary {
 }
 
 // ─── Paginated fetch all locations (Supabase defaults to 1000 rows/query) ──
-async function fetchAllLocations(tripId: string): Promise<{ data: LocationPoint[] | null }> {
+async function fetchAllLocations(
+  tripId: string,
+): Promise<{ data: LocationPoint[] | null }> {
   const PAGE_SIZE = 1000;
   const allLocations: LocationPoint[] = [];
   let page = 0;
@@ -105,7 +111,9 @@ async function fetchAllLocations(tripId: string): Promise<{ data: LocationPoint[
     page++;
   }
 
-  console.log(`[fetchAllLocations] Fetched ${allLocations.length} locations in ${page + 1} page(s)`);
+  console.log(
+    `[fetchAllLocations] Fetched ${allLocations.length} locations in ${page + 1} page(s)`,
+  );
   return { data: allLocations };
 }
 
@@ -166,7 +174,10 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
         .single();
 
       if (tripError || !tripData) {
-        console.error('[useTripRealtime] Trip fetch error:', tripError?.message);
+        console.error(
+          '[useTripRealtime] Trip fetch error:',
+          tripError?.message,
+        );
         if (!cancelled) setIsLoading(false);
         return;
       }
@@ -189,11 +200,15 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
       const resetIdleTimer = () => {
         if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
         idleTimerRef.current = setTimeout(async () => {
-          console.log('[useTripRealtime] Idle for 10s — checking trip status...');
+          console.log(
+            '[useTripRealtime] Idle for 10s — checking trip status...',
+          );
           const stillActive = await refetchAll(isCancelled);
           // If trip is still active, restart the idle timer
           if (stillActive && !isCancelled()) {
-            console.log('[useTripRealtime] Trip still active — restarting idle timer');
+            console.log(
+              '[useTripRealtime] Trip still active — restarting idle timer',
+            );
             resetIdleTimer();
           }
         }, 10_000);
@@ -237,12 +252,20 @@ export function useTripRealtime(tripId: string): UseTripRealtimeResult {
     };
   }, [tripId]);
 
-  const currentLocation = locations.length > 0 ? locations[locations.length - 1] : null;
+  const currentLocation =
+    locations.length > 0 ? locations[locations.length - 1] : null;
 
   const tripSummary = useMemo(
     () => (locations.length >= 2 ? computeSummary(locations) : null),
     [locations],
   );
 
-  return { locations, currentLocation, isLoading, isActive, tripName, tripSummary };
+  return {
+    locations,
+    currentLocation,
+    isLoading,
+    isActive,
+    tripName,
+    tripSummary,
+  };
 }

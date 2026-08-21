@@ -8,6 +8,7 @@ import {
   Popup,
   TileLayer,
   useMap,
+  ZoomControl,
 } from 'react-leaflet';
 
 // ─── Custom cute marker icon (SVG duck) ───────────────────────
@@ -131,8 +132,12 @@ export default function MapView({
     <MapContainer
       center={center}
       zoom={zoom}
-      style={{ height: '100%', width: '100%' }}
+      zoomControl={false}
+      attributionControl={false}
+      className="h-full w-full"
     >
+      <ZoomControl position="bottomright" />
+
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -147,9 +152,9 @@ export default function MapView({
       {currentPosition && (
         <Marker position={currentPosition} icon={currentLocationIcon}>
           <Popup>
-            📍 {currentPosition[0].toFixed(5)}, {currentPosition[1].toFixed(5)}
-            <br />
-            🏃 {currentSpeed} km/h
+            <div>📍 {currentPosition[0].toFixed(5)} </div>
+            <span className="block my-2"></span>
+            <div>🏃 {currentSpeed} km/h</div>
           </Popup>
         </Marker>
       )}
