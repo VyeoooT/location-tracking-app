@@ -1,31 +1,24 @@
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { NetworkStatusBanner } from '@/components/network-status-banner';
 import { useNetworkStatus } from '@/hooks/use-network-status';
-import { flushQueue } from '@/lib/location-queue';
+// Import side-effect: đăng ký TaskManager task ở app root để task vẫn tồn tại
+// khi JS context khởi động headless (app bị kill nhưng foreground service chạy).
+import '@/lib/location-background-task';
+import { startQueueAutoFlush } from '@/lib/queue-auto-flush';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 import '../global.css';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const { status } = useNetworkStatus();
-  const prevStatus = useRef(status);
 
-  useEffect(() => {
-    if (prevStatus.current !== 'connected' && status === 'connected') {
-      flushQueue().then((count) => {
-        if (count > 0) {
-          console.log(
-            `[Network] Flushed ${count} queued locations after reconnect`,
-          );
-        }
-      });
-    }
-    prevStatus.current = status;
-  }, [status]);
+  // Flush queue ngay khi có mạng trở lại, kể cả khi app đang ở nền và người
+  // dùng không mở lại app.
+  useEffect(() => startQueueAutoFlush(), []);
 
   return (
     <>

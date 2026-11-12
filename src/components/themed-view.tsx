@@ -1,6 +1,7 @@
 import { View, type ViewProps } from 'react-native';
 
 import { ThemeColor } from '@/constants/theme';
+import { hasBackgroundUtility } from '@/lib/nativewind-classes';
 
 export type ThemedViewProps = ViewProps & {
   className?: string;
@@ -22,7 +23,12 @@ export function ThemedView({
   type,
   ...otherProps
 }: ThemedViewProps) {
-  const colorClass = THEME_COLOR_CLASS[type ?? 'background'];
+  // Never add the theme background when the caller supplies their own — the
+  // compiled stylesheet emits `bg-white` after custom colors, so it would win
+  // over classes like `bg-brand` regardless of className order.
+  const colorClass = hasBackgroundUtility(className)
+    ? ''
+    : THEME_COLOR_CLASS[type ?? 'background'];
 
   return (
     <View

@@ -72,9 +72,54 @@ export async function enqueueLocations(rows: QueuedLocation[]): Promise<void> {
     const current = await getQueuedLocations();
     const merged = [...current, ...rows];
     if (merged.length > MAX_QUEUE_ITEMS) {
-      merged.splice(0, merged.length - MAX_QUEUE_ITEMS);
+      const dropped = merged.length - MAX_QUEUE_ITEMS;
+      merged.splice(0, dropped);
+      console.warn(
+        `[Queue] Queue full (${MAX_QUEUE_ITEMS}), dropped ${dropped} oldest location(s)`,
+      );
     }
     await AsyncStorage.setItem(LOCATION_QUEUE_KEY, JSON.stringify(merged));
+  });
+}
+
+function isSameLocation(a: QueuedLocation, b: QueuedLocation): boolean {
+  return (
+    a.trip_id === b.trip_id &&
+    a.lat === b.lat &&
+    a.lng === b.lng &&
+    a.speed === b.speed &&
+    a.timestamp === b.timestamp
+  );
+}
+
+/**
+ * Remove only the rows that were successfully flushed.
+ *
+ * The queue must never be emptied before the insert succeeds: if the app is
+ * killed mid-flush, everything not yet on the server would be lost. This
+ * read-modify-write runs under the queue lock and subtracts the flushed rows
+ * one-for-one, so locations enqueued while the request was in flight are kept.
+ */
+export async function removeQueuedLocations(
+  flushed: QueuedLocation[],
+): Promise<void> {
+  if (flushed.length === 0) return;
+
+  await withQueueLock(async () => {
+    const current = await getQueuedLocations();
+    if (current.length === 0) return;
+
+    const remaining = [...current];
+    for (const row of flushed) {
+      const index = remaining.findIndex((item) => isSameLocation(item, row));
+      if (index !== -1) remaining.splice(index, 1);
+    }
+
+    if (remaining.length === 0) {
+      await AsyncStorage.removeItem(LOCATION_QUEUE_KEY);
+    } else {
+      await AsyncStorage.setItem(LOCATION_QUEUE_KEY, JSON.stringify(remaining));
+    }
   });
 }
 
@@ -119,4 +164,8 @@ export async function setLastPushedLocation(
   loc: LastPushedLocation,
 ): Promise<void> {
   await AsyncStorage.setItem(LAST_PUSHED_KEY, JSON.stringify(loc));
+}
+
+export async function removeLastPushedLocation(): Promise<void> {
+  await AsyncStorage.removeItem(LAST_PUSHED_KEY);
 }

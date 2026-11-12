@@ -1,7 +1,8 @@
 import { supabase } from './supabase';
 import {
-  dequeueLocations,
   enqueueLocations,
+  getQueuedLocations,
+  removeQueuedLocations,
   QueuedLocation,
 } from './async-storage';
 import { emitSyncStatus } from './sync-events';
@@ -30,7 +31,13 @@ export async function insertWithRetry(
     try {
       const { error } = await supabase
         .from('locations')
-        .insert(rows)
+        // Upsert + ignoreDuplicates để retry/flush là idempotent: nếu một dòng
+        // đã lên server (ví dụ app bị kill sau khi insert nhưng trước khi xoá
+        // queue) thì bỏ qua thay vì làm fail cả batch.
+        .upsert(rows, {
+          onConflict: 'trip_id,timestamp',
+          ignoreDuplicates: true,
+        })
         .abortSignal(signal);
       if (!error) return true;
 
@@ -52,32 +59,54 @@ export async function saveToQueue(rows: QueuedLocation[]): Promise<void> {
   );
 }
 
-/** Flush queued locations. Returns number flushed, or 0 on failure/empty. */
-export async function flushQueue(): Promise<number> {
-  const queued = await dequeueLocations();
+/**
+ * Serialize flushes so the same queued rows can never be inserted twice by
+ * concurrent callers (foreground reconnect + background task) and so a quick
+ * flush cannot race a full retry flush.
+ */
+let flushTail: Promise<unknown> = Promise.resolve();
+
+function serializeFlush<T>(task: () => Promise<T>): Promise<T> {
+  const run = flushTail.then(task, task);
+  flushTail = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+async function flushQueueInternal(): Promise<number> {
+  const queued = await getQueuedLocations();
   if (queued.length === 0) return 0;
 
   emitSyncStatus('syncing', queued.length);
 
   const success = await insertWithRetry(queued);
-  if (success) {
-    console.log(
-      `[Flush] Successfully flushed ${queued.length} queued location(s)`,
+  if (!success) {
+    // The queue was never emptied, so nothing is lost — it will be retried on
+    // the next connectivity/task trigger.
+    console.warn(
+      `[Flush] Failed to flush ${queued.length} queued location(s), keeping queue`,
     );
-    emitSyncStatus('done', queued.length);
-    return queued.length;
+    emitSyncStatus('failed');
+    return 0;
   }
 
-  await saveToQueue(queued);
-  console.warn(
-    `[Flush] Failed to flush ${queued.length} queued location(s), re-queued`,
+  await removeQueuedLocations(queued);
+  console.log(
+    `[Flush] Successfully flushed ${queued.length} queued location(s)`,
   );
-  emitSyncStatus('failed');
-  return 0;
+  emitSyncStatus('done', queued.length);
+  return queued.length;
 }
 
-export async function flushQueueQuick(): Promise<boolean> {
-  const queued = await dequeueLocations();
+/** Flush queued locations. Returns number flushed, or 0 on failure/empty. */
+export function flushQueue(): Promise<number> {
+  return serializeFlush(flushQueueInternal);
+}
+
+async function flushQueueQuickInternal(): Promise<boolean> {
+  const queued = await getQueuedLocations();
   if (queued.length === 0) return true;
 
   emitSyncStatus('syncing', queued.length);
@@ -86,20 +115,27 @@ export async function flushQueueQuick(): Promise<boolean> {
   try {
     const { error } = await supabase
       .from('locations')
-      .insert(queued)
+      .upsert(queued, {
+        onConflict: 'trip_id,timestamp',
+        ignoreDuplicates: true,
+      })
       .abortSignal(signal);
     if (!error) {
+      await removeQueuedLocations(queued);
       console.log(`[Flush] Quick flush of ${queued.length} queued location(s)`);
       emitSyncStatus('done', queued.length);
       return true;
     }
-    await saveToQueue(queued);
     console.warn(
-      `[Flush] Quick flush failed (${queued.length} location(s) re-queued)`,
+      `[Flush] Quick flush failed (${queued.length} location(s) kept for retry)`,
     );
     emitSyncStatus('failed');
     return false;
   } finally {
     cancel();
   }
+}
+
+export function flushQueueQuick(): Promise<boolean> {
+  return serializeFlush(flushQueueQuickInternal);
 }

@@ -1,6 +1,6 @@
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   MapContainer,
   Marker,
@@ -8,6 +8,7 @@ import {
   Popup,
   TileLayer,
   useMap,
+  useMapEvents,
   ZoomControl,
 } from 'react-leaflet';
 
@@ -91,26 +92,118 @@ interface MapViewProps {
   currentSpeed?: string;
 }
 
-function MapCenterUpdater({ position }: { position: [number, number] | null }) {
+// ─── Sub-components ───────────────────────────────────────────
+
+/**
+ * Detects user-initiated map interactions (drag, zoom via scroll/pinch/
+ * double-click) and breaks out of follow mode. Programmatic panTo/flyTo
+ * triggered by follow mode sets a guard flag so those don't count.
+ */
+function UserInteractionDetector({
+  onUserInteraction,
+}: {
+  onUserInteraction: () => void;
+}) {
+  useMapEvents({
+    dragstart: () => onUserInteraction(),
+    zoomstart: () => onUserInteraction(),
+  });
+  return null;
+}
+
+/**
+ * When following is active, smoothly pan the map to the current position.
+ * Skips tiny GPS drift (< 10m) to avoid constant micro-pans.
+ */
+function FollowUpdater({
+  position,
+  isFollowing,
+}: {
+  position: [number, number] | null;
+  isFollowing: boolean;
+}) {
   const map = useMap();
   const prevRef = useRef<[number, number] | null>(null);
+  // Guard: when we programmatically pan, the map fires dragstart/zoomstart.
+  // We set this flag before panTo so UserInteractionDetector can ignore it.
+  const isProgrammaticRef = useRef(false);
 
   useEffect(() => {
-    if (position) {
-      // Chỉ panTo khi điểm mới đủ khác biệt (tránh rung liên tục)
-      const prev = prevRef.current;
-      if (
-        !prev ||
-        haversineMeters(prev[0], prev[1], position[0], position[1]) > 10
-      ) {
-        map.panTo(position, { animate: false });
-        prevRef.current = position;
-      }
+    if (!isFollowing || !position) return;
+
+    const prev = prevRef.current;
+    if (
+      !prev ||
+      haversineMeters(prev[0], prev[1], position[0], position[1]) > 10
+    ) {
+      isProgrammaticRef.current = true;
+      map.panTo(position, { animate: false });
+      prevRef.current = position;
+      // Reset the guard after the current event loop so subsequent user
+      // interactions are properly detected.
+      requestAnimationFrame(() => {
+        isProgrammaticRef.current = false;
+      });
     }
-  }, [position, map]);
+  }, [position, isFollowing, map]);
 
   return null;
 }
+
+/**
+ * Re-center / follow button — shown when the user has panned/zoomed away.
+ * Clicking it re-enables follow mode and flies back to the current position.
+ */
+function RecenterButton({
+  visible,
+  currentPosition,
+  onRecenter,
+}: {
+  visible: boolean;
+  currentPosition: [number, number] | null;
+  onRecenter: () => void;
+}) {
+  const map = useMap();
+
+  const handleClick = useCallback(() => {
+    if (currentPosition) {
+      map.flyTo(currentPosition, map.getZoom(), { duration: 0.6 });
+    }
+    onRecenter();
+  }, [map, currentPosition, onRecenter]);
+
+  if (!visible || !currentPosition) return null;
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      aria-label="Theo dõi vị trí hiện tại"
+      title="Theo dõi vị trí hiện tại"
+      className="recenter-btn"
+    >
+      {/* Crosshair / GPS target icon */}
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <circle cx="12" cy="12" r="4" />
+        <line x1="12" y1="2" x2="12" y2="6" />
+        <line x1="12" y1="18" x2="12" y2="22" />
+        <line x1="2" y1="12" x2="6" y2="12" />
+        <line x1="18" y1="12" x2="22" y2="12" />
+      </svg>
+    </button>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────
 
 export default function MapView({
   center,
@@ -119,6 +212,26 @@ export default function MapView({
   currentPosition = null,
   currentSpeed = '--',
 }: MapViewProps) {
+  const [isFollowing, setIsFollowing] = useState(true);
+  // Track whether the programmatic pan is in progress so we can distinguish
+  // it from a user-initiated drag/zoom.
+  const programmaticMoveRef = useRef(false);
+
+  const handleUserInteraction = useCallback(() => {
+    // Ignore map events triggered by our own programmatic flyTo/panTo
+    if (programmaticMoveRef.current) return;
+    setIsFollowing(false);
+  }, []);
+
+  const handleRecenter = useCallback(() => {
+    programmaticMoveRef.current = true;
+    setIsFollowing(true);
+    // Reset after flyTo animation completes (~600ms)
+    setTimeout(() => {
+      programmaticMoveRef.current = false;
+    }, 700);
+  }, []);
+
   // Downsample trail for smooth rendering when > 2000 points
   const displayTrail = useMemo(
     () =>
@@ -143,7 +256,13 @@ export default function MapView({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      <MapCenterUpdater position={currentPosition} />
+      <UserInteractionDetector onUserInteraction={handleUserInteraction} />
+      <FollowUpdater position={currentPosition} isFollowing={isFollowing} />
+      <RecenterButton
+        visible={!isFollowing}
+        currentPosition={currentPosition}
+        onRecenter={handleRecenter}
+      />
 
       {displayTrail.length > 1 && (
         <Polyline positions={displayTrail} color="#208AEF" weight={4} />

@@ -1,6 +1,7 @@
 import { Text, type TextProps } from 'react-native';
 
 import { ThemeColor } from '@/constants/theme';
+import { hasTextColorUtility } from '@/lib/nativewind-classes';
 
 export type ThemedTextProps = TextProps & {
   className?: string;
@@ -43,9 +44,16 @@ export function ThemedText({
   themeColor,
   ...rest
 }: ThemedTextProps) {
+  // Skip the theme color when the caller passes a text color utility — in the
+  // compiled stylesheet `text-black` is emitted after custom colors, so it
+  // would otherwise override `text-brand` and friends.
+  const themeClass = hasTextColorUtility(className)
+    ? ''
+    : THEME_COLOR_CLASS[themeColor ?? 'text'];
+
   return (
     <Text
-      className={`${THEME_COLOR_CLASS[themeColor ?? 'text']} ${TYPE_CLASS[type]}${className ? ` ${className}` : ''}`}
+      className={`${themeClass} ${TYPE_CLASS[type]}${className ? ` ${className}` : ''}`}
       style={style}
       {...rest}
     />
