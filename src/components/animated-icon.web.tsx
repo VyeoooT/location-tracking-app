@@ -1,8 +1,7 @@
 import { Image } from 'expo-image';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 import Animated, { Keyframe, Easing } from 'react-native-reanimated';
 
-import classes from './animated-icon.module.css';
 const DURATION = 300;
 
 export function AnimatedSplashOverlay() {
@@ -56,68 +55,34 @@ const glowKeyframe = new Keyframe({
 
 export function AnimatedIcon() {
   return (
-    <View style={styles.iconContainer}>
+    <View className="size-[128px] items-center justify-center">
       <Animated.View
         entering={glowKeyframe.duration(60 * 1000 * 4)}
-        style={styles.glow}
+        className="absolute size-[201px]"
       >
         <Image
-          style={styles.glow}
+          className="absolute size-[201px]"
           source={require('@/assets/images/logo-glow.png')}
         />
       </Animated.View>
 
       <Animated.View
-        style={styles.background}
+        className="absolute size-[128px] rounded-[40px]"
         entering={keyframe.duration(DURATION)}
       >
-        <div className={classes.expoLogoBackground} />
+        {/* RN-web không hỗ trợ backgroundImage trên View — dùng DOM element */}
+        <div className="size-full rounded-[40px] bg-gradient-to-b from-[#3C9FFE] to-[#0274DF]" />
       </Animated.View>
 
       <Animated.View
-        style={styles.imageContainer}
+        className="items-center justify-center"
         entering={logoKeyframe.duration(DURATION)}
       >
         <Image
-          style={styles.image}
+          className="absolute h-[71px] w-[76px]"
           source={require('@/assets/images/expo-logo.png')}
         />
       </Animated.View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    width: '100%',
-    zIndex: 1000,
-    position: 'absolute',
-    top: 128 / 2 + 138,
-  },
-  imageContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  glow: {
-    width: 201,
-    height: 201,
-    position: 'absolute',
-  },
-  iconContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 128,
-    height: 128,
-  },
-  image: {
-    position: 'absolute',
-    width: 76,
-    height: 71,
-  },
-  background: {
-    width: 128,
-    height: 128,
-    position: 'absolute',
-  },
-});

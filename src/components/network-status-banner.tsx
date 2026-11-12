@@ -1,6 +1,6 @@
 import type { NetworkStatus } from '@/hooks/use-network-status';
 import { useEffect, useMemo, useRef } from 'react';
-import { Animated, StyleSheet, Text } from 'react-native';
+import { Animated, Text } from 'react-native';
 
 const BANNER_CONFIG: Record<
   Exclude<NetworkStatus, 'unknown'>,
@@ -81,36 +81,17 @@ export function NetworkStatusBanner({ status }: Props) {
 
   return (
     <Animated.View
+      className="absolute inset-x-0 top-0 z-[999] items-center px-4 pb-2.5 pt-11"
       style={[
-        styles.banner,
-        { backgroundColor: config.bg },
         {
+          backgroundColor: config.bg,
           transform: [{ translateY: slideAnim }],
           opacity,
         },
       ]}
       pointerEvents="none"
     >
-      <Text style={styles.text}>{config.label}</Text>
+      <Text className="text-sm font-semibold text-white">{config.label}</Text>
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  banner: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 999,
-    paddingTop: 44,
-    paddingBottom: 10,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-  },
-  text: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});

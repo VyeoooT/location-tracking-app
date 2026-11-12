@@ -1,12 +1,18 @@
 import { Image } from 'expo-image';
 import * as SplashScreen from 'expo-splash-screen';
 import { useState } from 'react';
-import { Dimensions, StyleSheet, View } from 'react-native';
+import { Dimensions, View } from 'react-native';
 import Animated, { Easing, Keyframe } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 
 const INITIAL_SCALE_FACTOR = Dimensions.get('screen').height / 90;
 const DURATION = 600;
+
+// Gradient là API riêng của React Native (experimental_backgroundImage),
+// chưa có utility tương ứng nên giữ qua style prop.
+const GRADIENT_STYLE = {
+  experimental_backgroundImage: 'linear-gradient(180deg, #3C9FFE, #0274DF)',
+};
 
 export function AnimatedSplashOverlay() {
   const [animate, setAnimate] = useState(false);
@@ -35,7 +41,7 @@ export function AnimatedSplashOverlay() {
 
   const image = (
     <Image
-      style={styles.image}
+      className="h-[71px] w-[76px]"
       source={require('@/assets/images/expo-logo.png')}
     />
   );
@@ -48,7 +54,7 @@ export function AnimatedSplashOverlay() {
           scheduleOnRN(setVisible, false);
         }
       })}
-      style={styles.splashOverlay}
+      className="absolute inset-0 z-[1000] items-center justify-center bg-brand"
     >
       {image}
     </Animated.View>
@@ -59,7 +65,7 @@ export function AnimatedSplashOverlay() {
           setAnimate(true);
         });
       }}
-      style={styles.splashOverlay}
+      className="absolute inset-0 z-[1000] items-center justify-center bg-brand"
     >
       {image}
     </View>
@@ -104,67 +110,31 @@ const glowKeyframe = new Keyframe({
 
 export function AnimatedIcon() {
   return (
-    <View style={styles.iconContainer}>
+    <View className="z-[100] size-[128px] items-center justify-center">
       <Animated.View
         entering={glowKeyframe.duration(60 * 1000 * 4)}
-        style={styles.glow}
+        className="absolute size-[201px]"
       >
         <Image
-          style={styles.glow}
+          className="absolute size-[201px]"
           source={require('@/assets/images/logo-glow.png')}
         />
       </Animated.View>
 
       <Animated.View
         entering={keyframe.duration(DURATION)}
-        style={styles.background}
+        className="absolute size-[128px] rounded-[40px]"
+        style={GRADIENT_STYLE}
       />
       <Animated.View
-        style={styles.imageContainer}
+        className="items-center justify-center"
         entering={logoKeyframe.duration(DURATION)}
       >
         <Image
-          style={styles.image}
+          className="h-[71px] w-[76px]"
           source={require('@/assets/images/expo-logo.png')}
         />
       </Animated.View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  imageContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  glow: {
-    width: 201,
-    height: 201,
-    position: 'absolute',
-  },
-  iconContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 128,
-    height: 128,
-    zIndex: 100,
-  },
-  image: {
-    width: 76,
-    height: 71,
-  },
-  background: {
-    borderRadius: 40,
-    experimental_backgroundImage: `linear-gradient(180deg, #3C9FFE, #0274DF)`,
-    width: 128,
-    height: 128,
-    position: 'absolute',
-  },
-  splashOverlay: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: '#208AEF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-});

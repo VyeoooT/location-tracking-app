@@ -1,4 +1,4 @@
-import { ScrollView, StyleSheet } from 'react-native';
+import { ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
@@ -10,17 +10,21 @@ export default function GuideScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <ThemedView style={styles.container}>
+    <ThemedView className="flex-1">
       <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.content,
-          { paddingBottom: insets.bottom + BottomTabInset + Spacing.four },
-        ]}
+        className="flex-1"
+        contentContainerStyle={{
+          paddingHorizontal: Spacing.four,
+          maxWidth: MaxContentWidth,
+          alignSelf: 'center',
+          width: '100%',
+          rowGap: Spacing.three,
+          paddingBottom: insets.bottom + BottomTabInset + Spacing.four,
+        }}
       >
-        <ThemedView style={styles.header}>
+        <ThemedView className="gap-1 pb-2 pt-8">
           <ThemedText type="title">📍 Hướng dẫn sử dụng</ThemedText>
-          <ThemedText style={styles.subtitle}>
+          <ThemedText className="opacity-70">
             Ghi lại và chia sẻ hành trình với người thân
           </ThemedText>
         </ThemedView>
@@ -68,27 +72,3 @@ export default function GuideScreen() {
     </ThemedView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scroll: {
-    flex: 1,
-  },
-  content: {
-    paddingHorizontal: Spacing.four,
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    width: '100%',
-    gap: Spacing.three,
-  },
-  header: {
-    paddingTop: Spacing.five,
-    paddingBottom: Spacing.two,
-    gap: Spacing.one,
-  },
-  subtitle: {
-    opacity: 0.7,
-  },
-});

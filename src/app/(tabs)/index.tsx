@@ -1,12 +1,11 @@
 import { useState, useCallback } from 'react';
-import { StyleSheet, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { Pressable, ActivityIndicator, Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { getStoredTripId } from '@/lib/async-storage';
 import { LOCATION_TRACKING_TASK_NAME } from '@/hooks/useLocationTracking';
@@ -126,53 +125,48 @@ export default function HomeScreen() {
   }, [router]);
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+    <ThemedView className="flex-1 flex-row justify-center">
+      <SafeAreaView className="ios:pb-[66px] android:pb-24 flex max-w-[800px] flex-1 items-center justify-center gap-6 px-6">
         {/* Hero */}
-        <ThemedView style={styles.heroSection}>
-          <ThemedText type="title" style={styles.heroEmoji}>
+        <ThemedView className="mb-4 items-center gap-4">
+          <ThemedText type="title" className="text-[64px] leading-[72px]">
             📍
           </ThemedText>
-          <ThemedText type="subtitle" style={styles.heroTitle}>
+          <ThemedText type="subtitle" className="text-center">
             Location Tracker
           </ThemedText>
-          <ThemedText style={styles.heroSubtitle}>
+          <ThemedText className="max-w-[280px] text-center opacity-70">
             Theo dõi hành trình của bạn và chia sẻ với người thân
           </ThemedText>
         </ThemedView>
 
         {/* Nút chính */}
         {checkingTrip ? (
-          <ThemedView style={[styles.startButton, styles.startButtonChecking]}>
+          <ThemedView className="min-h-[64px] items-center justify-center self-stretch rounded-2xl bg-brand py-6 opacity-50">
             <ActivityIndicator color="#FFFFFF" size="small" />
           </ThemedView>
         ) : activeTripId ? (
           <Pressable
-            style={({ pressed }) => [
-              styles.resumeButton,
-              pressed && styles.resumeButtonPressed,
-            ]}
+            className="items-center justify-center self-stretch rounded-2xl bg-success py-6 active:opacity-70"
             onPress={handleResumeTrip}
           >
-            <ThemedText style={styles.resumeButtonText}>
+            <ThemedText className="text-xl font-bold text-white">
               📍 Đang trong hành trình
             </ThemedText>
-            <ThemedText style={styles.resumeButtonSub}>Chạm để xem</ThemedText>
+            <ThemedText className="mt-0.5 text-[13px] text-white/80">
+              Chạm để xem
+            </ThemedText>
           </Pressable>
         ) : (
           <Pressable
-            style={({ pressed }) => [
-              styles.startButton,
-              pressed && styles.startButtonPressed,
-              starting && styles.startButtonDisabled,
-            ]}
+            className={`min-h-[64px] items-center justify-center self-stretch rounded-2xl bg-brand py-6 active:opacity-70${starting ? 'opacity-50' : ''}`}
             onPress={handleStartTrip}
             disabled={starting}
           >
             {starting ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-              <ThemedText style={styles.startButtonText}>
+              <ThemedText className="text-xl font-bold text-white">
                 🚀 Bắt đầu hành trình
               </ThemedText>
             )}
@@ -180,22 +174,24 @@ export default function HomeScreen() {
         )}
 
         {/* Thống kê */}
-        <ThemedView type="backgroundElement" style={styles.statsCard}>
-          <ThemedText style={styles.statsCount}>
+        <ThemedView
+          type="backgroundElement"
+          className="flex-row items-center gap-2 rounded-2xl px-6 py-4"
+        >
+          <ThemedText className="text-2xl font-bold">
             {tripCount != null ? tripCount : '--'}
           </ThemedText>
-          <ThemedText style={styles.statsLabel}>chuyến đã thực hiện</ThemedText>
+          <ThemedText className="text-sm opacity-70">
+            chuyến đã thực hiện
+          </ThemedText>
         </ThemedView>
 
         {/* Nút phụ */}
         <Pressable
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            pressed && styles.secondaryButtonPressed,
-          ]}
+          className="items-center self-stretch rounded-2xl border border-neutral-500/30 py-4 active:opacity-60"
           onPress={handleViewHistory}
         >
-          <ThemedText style={styles.secondaryButtonText}>
+          <ThemedText className="text-base font-semibold">
             📋 Xem lịch sử
           </ThemedText>
         </Pressable>
@@ -203,113 +199,3 @@ export default function HomeScreen() {
     </ThemedView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.four,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
-    alignItems: 'center',
-    gap: Spacing.three,
-    marginBottom: Spacing.three,
-  },
-  heroEmoji: {
-    fontSize: 64,
-    lineHeight: 72,
-  },
-  heroTitle: {
-    textAlign: 'center',
-  },
-  heroSubtitle: {
-    textAlign: 'center',
-    opacity: 0.7,
-    maxWidth: 280,
-  },
-  startButton: {
-    alignSelf: 'stretch',
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.three,
-    backgroundColor: '#208AEF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 64,
-  },
-  startButtonPressed: {
-    opacity: 0.7,
-  },
-  startButtonDisabled: {
-    opacity: 0.5,
-  },
-  startButtonChecking: {
-    opacity: 0.5,
-  },
-  startButtonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  resumeButton: {
-    alignSelf: 'stretch',
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.three,
-    backgroundColor: '#34C759',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 64,
-  },
-  resumeButtonPressed: {
-    opacity: 0.7,
-  },
-  resumeButtonText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  resumeButtonSub: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: Spacing.half,
-  },
-  statsCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-    paddingHorizontal: Spacing.four,
-    paddingVertical: Spacing.three,
-    borderRadius: Spacing.three,
-  },
-  statsCount: {
-    fontSize: 24,
-    fontWeight: '700',
-  },
-  statsLabel: {
-    fontSize: 14,
-    opacity: 0.7,
-  },
-  secondaryButton: {
-    alignSelf: 'stretch',
-    paddingVertical: Spacing.three,
-    borderRadius: Spacing.three,
-    borderWidth: 1,
-    borderColor: 'rgba(128, 128, 128, 0.3)',
-    alignItems: 'center',
-  },
-  secondaryButtonPressed: {
-    opacity: 0.6,
-  },
-  secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

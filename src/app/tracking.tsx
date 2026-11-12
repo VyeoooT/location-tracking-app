@@ -2,14 +2,13 @@ import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as TaskManager from 'expo-task-manager';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, Share, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, Share, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SyncToast } from '@/components/sync-toast';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VIEWER_BASE_URL } from '@/constants/config';
-import { Spacing } from '@/constants/theme';
 import {
   LOCATION_TRACKING_TASK_NAME,
   useLocationTracking,
@@ -150,109 +149,116 @@ export default function TrackingScreen() {
   if (!tripId) return null;
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
+    <ThemedView className="flex-1">
+      <SafeAreaView className="flex-1 px-6 pt-4">
         <SyncToast />
         {/* Header */}
-        <ThemedView style={styles.header}>
-          <ThemedView style={styles.headerLeft}>
-            <ThemedText type="subtitle" style={styles.headerTitle}>
+        <ThemedView className="mb-8 flex-row items-center justify-between">
+          <ThemedView className="flex-row items-center gap-2">
+            <ThemedText type="subtitle" className="text-[28px] leading-9">
               Đang theo dõi
             </ThemedText>
-            <ThemedView style={styles.statusDot} />
+            <ThemedView className="size-2.5 rounded-full bg-success" />
           </ThemedView>
-          <ThemedView style={styles.headerNav}>
+          <ThemedView className="flex-row gap-2">
             <Pressable
-              style={({ pressed }) => [
-                styles.navBtn,
-                pressed && styles.navBtnPressed,
-              ]}
+              className="h-10 w-10 items-center justify-center rounded-full bg-neutral-500/15 active:opacity-60"
               onPress={() => router.replace('/(tabs)')}
             >
-              <ThemedText style={styles.navBtnText}>🏠</ThemedText>
+              <ThemedText className="text-lg">🏠</ThemedText>
             </Pressable>
             <Pressable
-              style={({ pressed }) => [
-                styles.navBtn,
-                pressed && styles.navBtnPressed,
-              ]}
+              className="h-10 w-10 items-center justify-center rounded-full bg-neutral-500/15 active:opacity-60"
               onPress={() => router.replace('/(tabs)/history')}
             >
-              <ThemedText style={styles.navBtnText}>📋</ThemedText>
+              <ThemedText className="text-lg">📋</ThemedText>
             </Pressable>
           </ThemedView>
         </ThemedView>
 
         {/* Thông số chính */}
-        <ThemedView style={styles.mainStats}>
+        <ThemedView className="mb-6 flex-row gap-4">
           {/* Tốc độ */}
-          <ThemedView style={styles.statCard}>
-            <ThemedText style={styles.statValue}>{speedKmh}</ThemedText>
-            <ThemedText style={styles.statLabel}>km/h</ThemedText>
+          <ThemedView className="flex-1 items-center rounded-2xl bg-brand px-4 py-6">
+            <ThemedText className="text-[28px] font-bold tabular-nums text-white">
+              {speedKmh}
+            </ThemedText>
+            <ThemedText className="mt-0.5 text-xs font-medium uppercase tracking-[0.5px] text-white/80">
+              km/h
+            </ThemedText>
           </ThemedView>
 
           {/* Thời gian */}
-          <ThemedView style={styles.statCard}>
-            <ThemedText style={styles.statValue}>{elapsedStr}</ThemedText>
-            <ThemedText style={styles.statLabel}>thời gian</ThemedText>
+          <ThemedView className="flex-1 items-center rounded-2xl bg-brand px-4 py-6">
+            <ThemedText className="text-[28px] font-bold tabular-nums text-white">
+              {elapsedStr}
+            </ThemedText>
+            <ThemedText className="mt-0.5 text-xs font-medium uppercase tracking-[0.5px] text-white/80">
+              thời gian
+            </ThemedText>
           </ThemedView>
 
           {/* Số điểm */}
-          <ThemedView style={styles.statCard}>
-            <ThemedText style={styles.statValue}>{locationCount}</ThemedText>
-            <ThemedText style={styles.statLabel}>điểm GPS</ThemedText>
+          <ThemedView className="flex-1 items-center rounded-2xl bg-brand px-4 py-6">
+            <ThemedText className="text-[28px] font-bold tabular-nums text-white">
+              {locationCount}
+            </ThemedText>
+            <ThemedText className="font-meditm uext-xs tracking-[ mt-0.5 text-xs font-medium uppercase">
+              điểm GPS
+            </ThemedText>
           </ThemedView>
         </ThemedView>
 
         {/* Toạ độ */}
-        <ThemedView type="backgroundElement" style={styles.coordsCard}>
-          <View style={styles.coordRow}>
-            <ThemedText style={styles.coordLabel}>Vĩ độ</ThemedText>
-            <ThemedText style={styles.coordValue}>{lat}</ThemedText>
+        <ThemedView type="backgroundElement" className="mb-6 rounded-2xl p-6">
+          <View className="flex-row items-center justify-between py-1">
+            <ThemedText className="text-sm font-medium opacity-70">
+              Vĩ độ
+            </ThemedText>
+            <ThemedText className="text-base font-semibold tabular-nums">
+              {lat}
+            </ThemedText>
           </View>
-          <View style={styles.coordDivider} />
-          <View style={styles.coordRow}>
-            <ThemedText style={styles.coordLabel}>Kinh độ</ThemedText>
-            <ThemedText style={styles.coordValue}>{lng}</ThemedText>
+          <View className="my-1 h-px bg-neutral-500/20" />
+          <View className="flex-row items-center justify-between py-1">
+            <ThemedText className="text-sm font-medium opacity-70">
+              Kinh độ
+            </ThemedText>
+            <ThemedText className="text-base font-semibold tabular-nums">
+              {lng}
+            </ThemedText>
           </View>
         </ThemedView>
 
         {/* Share link row */}
-        <View style={styles.shareRow}>
+        <View className="mb-6 flex-row gap-4">
           <Pressable
-            style={({ pressed }) => [
-              styles.copyButton,
-              pressed && styles.copyButtonPressed,
-            ]}
+            className="flex-1 items-center rounded-2xl border border-brand py-4 active:opacity-60"
             onPress={handleCopyLink}
           >
-            <ThemedText style={styles.copyButtonText}>{copyLabel}</ThemedText>
+            <ThemedText className="text-sm font-semibold text-brand">
+              {copyLabel}
+            </ThemedText>
           </Pressable>
           <Pressable
-            style={({ pressed }) => [
-              styles.shareButton,
-              pressed && styles.shareButtonPressed,
-            ]}
+            className="flex-1 items-center rounded-2xl bg-brand py-4 active:opacity-70"
             onPress={handleShareLink}
           >
-            <ThemedText style={styles.shareButtonText}>
+            <ThemedText className="text-sm font-semibold text-white">
               📤 Share link
             </ThemedText>
           </Pressable>
         </View>
 
         {/* Spacer */}
-        <View style={{ flex: 1 }} />
+        <View className="flex-1" />
 
         {/* Nút dừng */}
         <Pressable
-          style={({ pressed }) => [
-            styles.stopButton,
-            pressed && styles.stopButtonPressed,
-          ]}
+          className="items-center self-stretch rounded-2xl bg-danger py-6 active:opacity-70"
           onPress={handleStop}
         >
-          <ThemedText style={styles.stopButtonText}>
+          <ThemedText className="text-lg font-bold text-white">
             🛑 Dừng hành trình
           </ThemedText>
         </Pressable>
@@ -270,158 +276,3 @@ function formatElapsed(totalSeconds: number): string {
   }
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    paddingTop: Spacing.three,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.five,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.two,
-  },
-  headerTitle: {
-    fontSize: 28,
-    lineHeight: 36,
-  },
-  headerNav: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  navBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(128, 128, 128, 0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  navBtnPressed: {
-    opacity: 0.6,
-  },
-  navBtnText: {
-    fontSize: 18,
-  },
-  statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#34C759',
-  },
-  mainStats: {
-    flexDirection: 'row',
-    gap: Spacing.three,
-    marginBottom: Spacing.four,
-  },
-  statCard: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: Spacing.four,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
-    backgroundColor: '#208AEF',
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    fontVariant: ['tabular-nums'],
-  },
-  statLabel: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: Spacing.half,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  coordsCard: {
-    padding: Spacing.four,
-    borderRadius: Spacing.three,
-    marginBottom: Spacing.four,
-  },
-  coordRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: Spacing.one,
-  },
-  coordLabel: {
-    fontSize: 14,
-    fontWeight: '500',
-    opacity: 0.7,
-  },
-  coordValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
-  },
-  coordDivider: {
-    height: 1,
-    backgroundColor: 'rgba(128, 128, 128, 0.2)',
-    marginVertical: Spacing.one,
-  },
-  shareRow: {
-    flexDirection: 'row',
-    gap: Spacing.three,
-    marginBottom: Spacing.four,
-  },
-  copyButton: {
-    flex: 1,
-    paddingVertical: Spacing.three,
-    borderRadius: Spacing.three,
-    borderWidth: 1,
-    borderColor: '#208AEF',
-    alignItems: 'center',
-  },
-  copyButtonPressed: {
-    opacity: 0.6,
-  },
-  copyButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#208AEF',
-  },
-  shareButton: {
-    flex: 1,
-    paddingVertical: Spacing.three,
-    borderRadius: Spacing.three,
-    backgroundColor: '#208AEF',
-    alignItems: 'center',
-  },
-  shareButtonPressed: {
-    opacity: 0.7,
-  },
-  shareButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  stopButton: {
-    alignSelf: 'stretch',
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.three,
-    backgroundColor: '#FF3B30',
-    alignItems: 'center',
-    marginBottom: Spacing.four,
-  },
-  stopButtonPressed: {
-    opacity: 0.7,
-  },
-  stopButtonText: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-});

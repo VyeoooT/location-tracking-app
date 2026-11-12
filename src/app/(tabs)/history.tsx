@@ -8,14 +8,13 @@ import {
   Pressable,
   RefreshControl,
   Share,
-  StyleSheet,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { VIEWER_BASE_URL } from '@/constants/config';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 interface TripSummary {
@@ -98,59 +97,67 @@ export default function TripHistoryScreen() {
 
   if (loading) {
     return (
-      <ThemedView style={styles.centered}>
+      <ThemedView className="ios:pb-[50px] android:pb-20 flex flex-1 items-center justify-center gap-4">
         <ActivityIndicator size="large" color="#208AEF" />
-        <ThemedText style={styles.loadingText}>Đang tải lịch sử…</ThemedText>
+        <ThemedText className="opacity-60">Đang tải lịch sử…</ThemedText>
       </ThemedView>
     );
   }
 
   if (error) {
     return (
-      <ThemedView style={styles.centered}>
-        <ThemedText style={styles.errorText}>⚠️ Lỗi tải dữ liệu</ThemedText>
-        <ThemedText style={styles.errorDetail}>{error}</ThemedText>
-        <Pressable style={styles.retryButton} onPress={handleRefresh}>
-          <ThemedText style={styles.retryText}>Thử lại</ThemedText>
+      <ThemedView className="ios:pb-[50px] android:pb-20 flex flex-1 items-center justify-center gap-4">
+        <ThemedText className="text-lg font-bold">
+          ⚠️ Lỗi tải dữ liệu
+        </ThemedText>
+        <ThemedText className="px-6 text-center text-[13px] opacity-60">
+          {error}
+        </ThemedText>
+        <Pressable
+          className="rounded-2xl bg-brand px-8 py-4 active:opacity-70"
+          onPress={handleRefresh}
+        >
+          <ThemedText className="font-bold text-white">Thử lại</ThemedText>
         </Pressable>
       </ThemedView>
     );
   }
 
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <FlatList
-          data={trips}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              colors={['#208AEF']}
-              tintColor="#208AEF"
-            />
-          }
-          ListHeaderComponent={
-            <ThemedView style={styles.header}>
-              <ThemedText type="subtitle">Lịch sử hành trình</ThemedText>
-              <ThemedText style={styles.headerSub}>
-                {trips.length} chuyến đã thực hiện
-              </ThemedText>
-            </ThemedView>
-          }
-          ListEmptyComponent={<EmptyState />}
-          renderItem={({ item }) => (
-            <TripCard
-              trip={item}
-              onOpen={() => handleOpenViewer(item.id)}
-              onResume={() => handleResume(item.id)}
-              onShare={() => handleShare(item.id)}
-            />
-          )}
-          ItemSeparatorComponent={() => <ThemedView style={styles.separator} />}
-        />
+    <ThemedView className="flex-1">
+      <SafeAreaView className="flex-1">
+        <View className="w-full max-w-[800px] self-center px-6">
+          <FlatList
+            data={trips}
+            keyExtractor={(item) => item.id}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                colors={['#208AEF']}
+                tintColor="#208AEF"
+              />
+            }
+            ListHeaderComponent={
+              <ThemedView className="gap-1 pb-6 pt-8">
+                <ThemedText type="subtitle">Lịch sử hành trình</ThemedText>
+                <ThemedText className="text-sm opacity-60">
+                  {trips.length} chuyến đã thực hiện
+                </ThemedText>
+              </ThemedView>
+            }
+            ListEmptyComponent={<EmptyState />}
+            renderItem={({ item }) => (
+              <TripCard
+                trip={item}
+                onOpen={() => handleOpenViewer(item.id)}
+                onResume={() => handleResume(item.id)}
+                onShare={() => handleShare(item.id)}
+              />
+            )}
+            ItemSeparatorComponent={() => <ThemedView className="h-2" />}
+          />
+        </View>
       </SafeAreaView>
     </ThemedView>
   );
@@ -160,10 +167,12 @@ export default function TripHistoryScreen() {
 
 function EmptyState() {
   return (
-    <ThemedView style={styles.emptyContainer}>
-      <ThemedText style={styles.emptyEmoji}>🗺️</ThemedText>
-      <ThemedText style={styles.emptyTitle}>Chưa có hành trình nào</ThemedText>
-      <ThemedText style={styles.emptySub}>
+    <ThemedView className="items-center gap-4 py-16">
+      <ThemedText className="text-5xl">🗺️</ThemedText>
+      <ThemedText className="text-lg font-bold">
+        Chưa có hành trình nào
+      </ThemedText>
+      <ThemedText className="text-center text-sm opacity-50">
         Hãy bắt đầu hành trình đầu tiên từ màn hình Home!
       </ThemedText>
     </ThemedView>
@@ -197,19 +206,19 @@ function TripCard({
 
   return (
     <Pressable
-      style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
+      className="overflow-hidden rounded-2xl active:opacity-80"
       onPress={trip.is_active ? onResume : onOpen}
     >
-      <ThemedView type="backgroundElement" style={styles.cardInner}>
+      <ThemedView type="backgroundElement" className="gap-4 rounded-2xl p-6">
         {/* Row 1: date + active badge */}
-        <ThemedView style={styles.cardRow}>
-          <ThemedView style={styles.dateBlock}>
-            <ThemedText style={styles.dateText}>{startDate}</ThemedText>
-            <ThemedText style={styles.timeText}>{startTime}</ThemedText>
+        <ThemedView className="flex-row items-center justify-between">
+          <ThemedView className="flex-row items-baseline gap-2">
+            <ThemedText className="text-base font-bold">{startDate}</ThemedText>
+            <ThemedText className="text-sm opacity-60">{startTime}</ThemedText>
           </ThemedView>
           {trip.is_active && (
-            <ThemedView style={styles.activeBadge}>
-              <ThemedText style={styles.activeBadgeText}>
+            <ThemedView className="rounded-lg bg-success px-2 py-0.5">
+              <ThemedText className="text-xs font-bold text-white">
                 ● Đang chạy
               </ThemedText>
             </ThemedView>
@@ -217,18 +226,15 @@ function TripCard({
         </ThemedView>
 
         {/* Row 2: stats */}
-        <ThemedView style={styles.statsRow}>
+        <ThemedView className="flex-row gap-8">
           <StatItem label="⏱ Thời lượng" value={duration} />
           <StatItem label="📍 Điểm GPS" value={`${trip.point_count}`} />
         </ThemedView>
 
         {/* Row 3: actions */}
-        <ThemedView style={styles.actionsRow}>
+        <ThemedView className="flex-row gap-2">
           <Pressable
-            style={({ pressed }) => [
-              styles.actionBtn,
-              pressed && styles.actionBtnPressed,
-            ]}
+            className="flex-1 items-center rounded-lg border border-neutral-500/30 py-2 active:opacity-60"
             onPress={(e) => {
               e.stopPropagation();
               if (trip.is_active) {
@@ -238,21 +244,20 @@ function TripCard({
               }
             }}
           >
-            <ThemedText style={styles.actionBtnText}>
+            <ThemedText className="text-[13px] font-semibold">
               {trip.is_active ? '📡 Tiếp tục theo dõi' : '🌐 Xem trên bản đồ'}
             </ThemedText>
           </Pressable>
           <Pressable
-            style={({ pressed }) => [
-              styles.actionBtn,
-              pressed && styles.actionBtnPressed,
-            ]}
+            className="flex-1 items-center rounded-lg border border-neutral-500/30 py-2 active:opacity-60"
             onPress={(e) => {
               e.stopPropagation();
               onShare();
             }}
           >
-            <ThemedText style={styles.actionBtnText}>📤 Chia sẻ</ThemedText>
+            <ThemedText className="text-[13px] font-semibold">
+              📤 Chia sẻ
+            </ThemedText>
           </Pressable>
         </ThemedView>
       </ThemedView>
@@ -262,9 +267,9 @@ function TripCard({
 
 function StatItem({ label, value }: { label: string; value: string }) {
   return (
-    <ThemedView style={styles.statItem}>
-      <ThemedText style={styles.statLabel}>{label}</ThemedText>
-      <ThemedText style={styles.statValue}>{value}</ThemedText>
+    <ThemedView className="flex-row items-baseline gap-1">
+      <ThemedText className="text-[13px] opacity-60">{label}</ThemedText>
+      <ThemedText className="text-sm font-semibold">{value}</ThemedText>
     </ThemedView>
   );
 }
@@ -286,167 +291,3 @@ function computeDurationFriendly(
   if (h > 0) return `${h}h ${m}m`;
   return `${m} phút`;
 }
-
-// ─── Styles ───────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  safeArea: {
-    flex: 1,
-  },
-  listContent: {
-    paddingHorizontal: Spacing.four,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-    alignSelf: 'center',
-    width: '100%',
-  },
-  header: {
-    paddingTop: Spacing.five,
-    paddingBottom: Spacing.four,
-    gap: Spacing.one,
-  },
-  headerSub: {
-    opacity: 0.6,
-    fontSize: 14,
-  },
-  separator: {
-    height: Spacing.two,
-  },
-
-  // Card
-  card: {
-    borderRadius: Spacing.three,
-    overflow: 'hidden',
-  },
-  cardPressed: {
-    opacity: 0.8,
-  },
-  cardInner: {
-    padding: Spacing.four,
-    gap: Spacing.three,
-    borderRadius: Spacing.three,
-  },
-  cardRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dateBlock: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-    alignItems: 'baseline',
-  },
-  dateText: {
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  timeText: {
-    fontSize: 14,
-    opacity: 0.6,
-  },
-  activeBadge: {
-    backgroundColor: '#34C759',
-    paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.half,
-    borderRadius: Spacing.two,
-  },
-  activeBadgeText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-
-  // Stats
-  statsRow: {
-    flexDirection: 'row',
-    gap: Spacing.five,
-  },
-  statItem: {
-    flexDirection: 'row',
-    gap: Spacing.one,
-    alignItems: 'baseline',
-  },
-  statLabel: {
-    fontSize: 13,
-    opacity: 0.6,
-  },
-  statValue: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-
-  // Actions
-  actionsRow: {
-    flexDirection: 'row',
-    gap: Spacing.two,
-  },
-  actionBtn: {
-    flex: 1,
-    paddingVertical: Spacing.two,
-    borderRadius: Spacing.two,
-    borderWidth: 1,
-    borderColor: 'rgba(128, 128, 128, 0.3)',
-    alignItems: 'center',
-  },
-  actionBtnPressed: {
-    opacity: 0.6,
-  },
-  actionBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
-  // Loading / Error
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset,
-  },
-  loadingText: {
-    opacity: 0.6,
-  },
-  errorText: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  errorDetail: {
-    fontSize: 13,
-    opacity: 0.6,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.four,
-  },
-  retryButton: {
-    paddingVertical: Spacing.three,
-    paddingHorizontal: Spacing.five,
-    backgroundColor: '#208AEF',
-    borderRadius: Spacing.three,
-  },
-  retryText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-
-  // Empty
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: Spacing.six,
-    gap: Spacing.three,
-  },
-  emptyEmoji: {
-    fontSize: 48,
-  },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  emptySub: {
-    fontSize: 14,
-    opacity: 0.5,
-    textAlign: 'center',
-  },
-});

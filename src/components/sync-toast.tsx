@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text } from 'react-native';
+import { Animated, Text } from 'react-native';
 import { onSyncStatus, SyncStatus } from '@/lib/sync-events';
 
 const COLORS: Record<SyncStatus, string> = {
@@ -82,38 +82,19 @@ export function SyncToast() {
 
   return (
     <Animated.View
+      className="elevation-4 absolute inset-x-4 top-[100px] z-[1000] items-center rounded-xl px-4 py-3 shadow-[0_2px_6px_rgba(0,0,0,0.15)]"
       style={[
-        styles.banner,
-        { backgroundColor: COLORS[status] },
-        { transform: [{ translateY: slideAnim }], opacity },
+        {
+          backgroundColor: COLORS[status],
+          transform: [{ translateY: slideAnim }],
+          opacity,
+        },
       ]}
       pointerEvents="none"
     >
-      <Text style={styles.text}>{LABELS[status](count)}</Text>
+      <Text className="text-sm font-semibold text-white">
+        {LABELS[status](count)}
+      </Text>
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  banner: {
-    position: 'absolute',
-    top: 100,
-    left: 16,
-    right: 16,
-    zIndex: 1000,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  text: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-});

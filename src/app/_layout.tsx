@@ -1,11 +1,12 @@
-import { useEffect, useRef } from 'react';
-import { Stack } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
-import { StatusBar } from 'expo-status-bar';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { NetworkStatusBanner } from '@/components/network-status-banner';
 import { useNetworkStatus } from '@/hooks/use-network-status';
 import { flushQueue } from '@/lib/location-queue';
+import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
+import { StatusBar } from 'expo-status-bar';
+import { useEffect, useRef } from 'react';
+import '../global.css';
 
 SplashScreen.preventAutoHideAsync();
 
